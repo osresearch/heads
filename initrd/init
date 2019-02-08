@@ -57,7 +57,6 @@ fi
 if [ "$CONFIG_LINUXBOOT" = "y" ]; then
 	/bin/uefi-init
 fi
-/bin/key-init
 
 # Setup recovery serial shell
 if [ ! -z "$CONFIG_BOOT_RECOVERY_SERIAL" ]; then
@@ -80,11 +79,12 @@ if [ "$boot_option" = "r" ]; then
 	# Start an interactive shell
 	recovery 'User requested recovery shell'
 	# just in case...
-	if [ "$CONFIG_TPM" = "y" ]; then
+
+  if [ "$CONFIG_RECOVERY_NEED_AUTH" = y ]; then
+		exit 1
+  elif [ "$CONFIG_TPM" = "y" ]; then
 		tpm extend -ix 4 -ic recovery
 	fi
-	exec /bin/ash
-	exit
 fi
 
 if [ ! -x "$CONFIG_BOOTSCRIPT" -a ! -x "$CONFIG_BOOTSCRIPT_NETWORK" ]; then
@@ -110,7 +110,9 @@ else
 fi
 
 # belts and suspenders, just in case...
-if [ "$CONFIG_TPM" = "y" ]; then
+
+if [ "$CONFIG_RECOVERY_NEED_AUTH" = y ]; then
+	exit 1
+elif [ "$CONFIG_TPM" = "y" ]; then
 	tpm extend -ix 4 -ic recovery
 fi
-exec /bin/ash
