@@ -4,69 +4,6 @@ set -e -o pipefail
 . /etc/functions
 . /tmp/config
 
-mount_usb(){
-# Mount the USB boot device
-  if ! grep -q /media /proc/mounts ; then
-    mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
-    if [ $USB_FAILED -ne 0 ]; then
-      if [ ! -e "$CONFIG_USB_BOOT_DEV" ]; then
-        whiptail --title 'USB Drive Missing' \
-          --msgbox "Insert your USB drive and press Enter to continue." 16 60 USB_FAILED=0
-        mount-usb "$CONFIG_USB_BOOT_DEV" || USB_FAILED=1
-      fi
-      if [ $USB_FAILED -ne 0 ]; then
-        whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Mounting /media Failed' \
-          --msgbox "Unable to mount $CONFIG_USB_BOOT_DEV" 16 60
-      fi
-    fi
-  fi
-}
-
-file_selector() {
-  FILE=""
-  FILE_LIST=$1
-  MENU_MSG=${2:-"Choose the file"}
-# create file menu options
-  if [ `cat "$FILE_LIST" | wc -l` -gt 0 ]; then
-    option=""
-    while [ -z "$option" ]
-    do
-      MENU_OPTIONS=""
-      n=0
-      while read option
-      do
-        n=`expr $n + 1`
-        option=$(echo $option | tr " " "_")
-        MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
-      done < $FILE_LIST
-
-      MENU_OPTIONS="$MENU_OPTIONS a Abort"
-      whiptail --clear --title "Select your File" \
-        --menu "${MENU_MSG} [1-$n, a to abort]:" 20 120 8 \
-        -- $MENU_OPTIONS \
-        2>/tmp/whiptail || die "Aborting"
-
-      option_index=$(cat /tmp/whiptail)
-
-      if [ "$option_index" = "a" ]; then
-        option="a"
-        return
-      fi
-
-      option=`head -n $option_index $FILE_LIST | tail -1`
-      if [ "$option" == "a" ]; then
-        return
-      fi
-    done
-    if [ -n "$option" ]; then
-      FILE=$option
-    fi
-  else
-    whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: No Files Found' \
-      --msgbox "No Files found matching the pattern. Aborting." 16 60
-    exit 1
-  fi
-}
 gpg_flash_rom() {
   cat "$PUBKEY" | gpg --import
   #update /.gnupg/trustdb.gpg to ultimately trust all user provided public keys
@@ -114,8 +51,8 @@ gpg_post_gen_mgmt() {
   gpg --export --armor $GPG_GEN_KEY > "/tmp/${GPG_GEN_KEY}.asc"
   if (whiptail --title 'Add Public Key to USB disk?' \
       --yesno "Would you like to copy the GPG public key you generated to a USB disk?\n\nOtherwise you will not be able to copy it outside of Heads later\n\nThe file will show up as ${GPG_GEN_KEY}.asc" 16 90) then
-    mount_usb
-    mount -o remount,rw /media
+    mount-usb || die "Unable to mount USB device."
+    mount -o remount,rw /media || die "Unable to remount /media in Read-Write mode. Is the device Write protected?"
     cp "/tmp/${GPG_GEN_KEY}.asc" "/media/${GPG_GEN_KEY}.asc"
     if [ $? -eq 0 ]; then
       whiptail --title "The GPG Key Copied Successfully" \
@@ -169,8 +106,9 @@ while true; do
     'r' ' Add GPG key to running BIOS + reflash' \
     'a' ' Add GPG key to standalone BIOS image + flash' \
     'l' ' List GPG keys in your keyring' \
-    'g' ' Generate GPG keys manually on a USB security token' \
+    'm' ' Manually generate GPG keys on a USB security token' \
     'o' ' OEM Factory reset + auto keygen USB security token' \
+    'F' ' Factory Reset Librem Key GPG Card + keygen + flash' \
     'x' ' Exit' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -183,7 +121,7 @@ while true; do
     "a" )
       if (whiptail --title 'ROM and GPG public key required' \
           --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n* Your BIOS image (*.rom)\n\nAfter you select these files, this program will reflash your BIOS\n\nDo you want to proceed?" 16 90) then
-        mount_usb
+        mount-usb || die "Unable to mount USB device."
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt
@@ -215,7 +153,7 @@ while true; do
     "r" )
       if (whiptail --title 'GPG public key required' \
           --yesno "This requires you insert a USB drive containing:\n* Your GPG public key (*.key or *.asc)\n\nAfter you select this file, this program will copy and reflash your BIOS\n\nDo you want to proceed?" 16 90) then
-        mount_usb
+        mount-usb || die "Unable to mount USB device."
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt
@@ -243,7 +181,7 @@ while true; do
       whiptail --title 'GPG Keyring' \
         --msgbox "${GPG_KEYRING}" 16 60
     ;;
-    "g" )
+    "m" )
       confirm_gpg_card
       echo -e "\n\n\n\n"
       echo "********************************************************************************"
@@ -275,6 +213,9 @@ while true; do
             --msgbox "Automatic Keygen Failed!\n\n$GPG_OUTPUT" 16 120
         fi
       fi
+    ;;
+    "F" )
+      /bin/factory-reset-libremkey.sh 
     ;;
   esac
 

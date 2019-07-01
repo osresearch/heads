@@ -75,7 +75,7 @@ verify_global_hashes()
 update_checksums()
 {
   if (whiptail --title 'Update Checksums and sign all files in /boot' \
-      --yesno "You have chosen to update the checksums and sign all of the files in /boot.\n\nThis means that you trust that the files in /boot have not been tampered with.\n\nYou will need your GPG key to continue and this change will modify your disk.\n\nDo you want to continue?" 16 90) then
+      --yesno "You have chosen to update the checksums and sign all of the files in /boot.\n\nThis means that you trust that the files in /boot have not been tampered\n with.\n\nYou will need your GPG key to continue and this change will modify your\n disk.\n\nDo you want to continue?" 16 90) then
     mount_boot
     mount -o rw,remount /boot
 
@@ -105,11 +105,17 @@ update_checksums()
 update_totp()
 {
   echo "Scan the QR code to add the new TOTP secret"
-  /bin/seal-totp
+  /bin/seal-totp $CONFIG_BOARD
   if [ -x /bin/libremkey_hotp_verification ]; then
     echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
     read
     /bin/seal-libremkey
+		#Sometimes HOTP sealing fails. We do until it works.
+    while [ $? -ne 0 ];do
+      echo -e "\n\nSealing HOTP secret into Librem Key failed. Let's try again by resealing both TOTP and HOTP."
+      update_totp
+      /bin/seal-libremkey
+    done
   else
     echo "Once you have scanned the QR code, hit Enter to reboot"
     read
@@ -117,11 +123,32 @@ update_totp()
   /bin/reboot
 }
 
-# enable USB to load modules for external kb
-enable_usb
-
 # ensure /boot is sane and mount it
 mount_boot
+if [ -e /boot/oem ];then
+  if [ -z "$oem_configuration_read" ]; then
+    #make sure the system is powered by AC outlet
+    if [ $(cat /sys/class/power_supply/AC/online) -eq 1 ]; then
+      #Read /media/oem-provisioning file once to read provisioned secrets
+      read_oem_files
+    else
+      notify "You must run the Reownership Wizard from a safe place with power outlet connected. OEM Reownership will require around an hour. Sytem will now power off."
+      poweroff
+    fi
+  fi
+fi
+
+if [ -e /boot/reset_disk_unlock_key ] && [ ! -e /boot/oem ]; then
+  if (whiptail $CONFIG_WARNING_BG_COLOR --title "WARNING: You must change your Disk Unlock Key" \
+        --yesno "You just updated the ROM, which requires resealing TOTP/HOTP secrets.\nTPM released Disk Unlock Key stored in LUKS header must also be regenerated.\n\nIf you did not modify the ROM, this might be a sign of system compromise.\nIn that case, you should say No here and investigate." 30 90) then
+    reset_disk_unlock_key
+  else
+    recovery "User refused to update TOTP/HOTP following what seemed to be a ROM update. Time to investigate changes manually."
+  fi
+fi
+
+# enable USB to load modules for external kb
+enable_usb
 
 last_half=X
 while true; do
@@ -190,7 +217,12 @@ while true; do
       HOTP='N/A'
     fi
 
-    whiptail $MAIN_MENU_BG_COLOR --clear --title "$CONFIG_BOOT_GUI_MENU_NAME" \
+    if [ -e /boot/oem ]; then
+      check_onboarding_progress
+  	  totp_confirm="O"
+      echo $totp_confirm > /tmp/whiptail
+    else
+          whiptail $MAIN_MENU_BG_COLOR --clear --title "$CONFIG_BOOT_GUI_MENU_NAME" \
       --menu "$date\nTOTP: $TOTP | HOTP: $HOTP" 20 90 10 \
       'y' ' Default boot' \
       'r' ' Refresh TOTP/HOTP' \
@@ -198,7 +230,32 @@ while true; do
       'P' ' Power Off' \
       2>/tmp/whiptail || recovery "GUI menu failed"
 
-    totp_confirm=$(cat /tmp/whiptail)
+      totp_confirm=$(cat /tmp/whiptail)
+    fi
+  fi
+
+  if [ "$totp_confirm" = "O" ]; then
+    check_config /boot force
+    TMP_HASH_FILE="/tmp/kexec/kexec_hashes.txt"
+
+    if cd /boot && sha256sum -c "$TMP_HASH_FILE" > /tmp/hash_output ; then
+      HASH="OK"
+      #Else there is errors from cryptsetup-reencrypt complaining to not be able to create logfile
+      cd /
+    else
+     HASH="ALTERED" 
+    fi
+    
+    whiptail $MAIN_MENU_BG_COLOR --clear --title "$CONFIG_BOOT_GUI_MENU_NAME: Reownership" \
+        --menu "Greenwich Mean Time (GMT) : $date\nTOTP: $TOTP | HOTP: $HOTP | /BOOT INTEGRITY: $HASH" 20 90 10 \
+        'C' ' Continue ownership of devices' \
+        'x' ' Exit to recovery shell' \
+        2>/tmp/whiptail || recovery "GUI menu failed"
+      totp_confirm=$(cat /tmp/whiptail)
+  fi
+
+  if [ "$totp_confirm" = "C" ]; then
+    check_onboarding_progress
   fi
 
   if [ "$totp_confirm" = "a" ]; then
@@ -210,6 +267,7 @@ while true; do
       'c' ' Change configuration settings -->' \
       'f' ' Flash/Update the BIOS -->' \
       'G' ' GPG Options -->' \
+      'R' ' Reencrypt LUKS container' \
       'x' ' Exit to recovery shell' \
       'r' ' <-- Return to main menu' \
       2>/tmp/whiptail || recovery "GUI menu failed"
@@ -222,6 +280,7 @@ while true; do
       --menu "Select A Boot Option" 20 90 10 \
       'm' ' Show OS boot menu' \
       'u' ' USB boot' \
+      'z' ' SDCARD boot' \
       'i' ' Ignore tampering and force a boot (Unsafe!)' \
       'r' ' <-- Return to main menu' \
       2>/tmp/whiptail || recovery "GUI menu failed"
@@ -268,6 +327,13 @@ while true; do
     continue
   fi
 
+  if [ "$totp_confirm" = "z" ]; then
+    mount-sdcard
+    exec /bin/usb-init
+    continue
+  fi
+
+
   if [ "$totp_confirm" = "g" ]; then
     if (whiptail --title 'Generate new TOTP/HOTP secret' \
         --yesno "This will erase your old secret and replace it with a new one!\n\nDo you want to proceed?" 16 90) then
@@ -282,6 +348,14 @@ while true; do
     if (whiptail --title 'Reset the TPM' \
         --yesno "This will clear the TPM and TPM password, replace them with new ones!\n\nDo you want to proceed?" 16 90) then
       /bin/tpm-reset
+      
+      #set flag in oem file
+      mount_boot
+      if [ -s /boot/oem ];then
+        mount -o remount,rw /boot
+        echo "tpm_reowned" >> /boot/oem
+        mount -o remount,ro /boot
+      fi
 
       # now that the TPM is reset, remove invalid TPM counter files
       mount_boot
@@ -347,6 +421,11 @@ while true; do
 
   if [ "$totp_confirm" = "G" ]; then
     gpg-gui.sh
+    continue
+  fi
+
+  if [ "$totp_confirm" = "R" ]; then
+    /bin/reencrypt-luks
     continue
   fi
 
