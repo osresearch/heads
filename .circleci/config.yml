@@ -169,6 +169,24 @@ jobs:
           path: build/x230-hotp-verification
 
       - run:
+          name: t430-hotp-verification
+          command: |
+            rm -rf build/t430-hotp-verification/* build/log/* && make --load 2 \
+                V=1 \
+                BOARD=t430-hotp-verification \
+          no_output_timeout: 3h
+      - run:
+          name: Ouput t430-hotp-verification hashes
+          command: |
+            cat build/t430-hotp-verification/hashes.txt \
+      - run:
+          name: Archiving build logs for x230-hotp-verification
+          command: |
+             tar zcvf build/t430-hotp-verification/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/t430-hotp-verification
+
+      - run:
           name: qemu-coreboot
           command: |
             rm -rf build/qemu-coreboot/* build/log/* && make CPUS=4 \
