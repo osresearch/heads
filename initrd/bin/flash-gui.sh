@@ -21,8 +21,20 @@ while true; do
       exit 0
     ;;
     f|c )
-      if (whiptail --title 'Flash the BIOS with a new ROM' \
-          --yesno "You will need to insert a USB drive containing your BIOS image (*.rom).\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
+      if [ -d "/boot/updates" ];then
+        if (whiptail --title 'Flash the BIOS with a new ROM' \
+          --yesno "A ROM detected in the /boot directory.\n\nDo you want to proceed?" 16 90) then
+          find /boot/updates ! -path '*/\.*' -type f -name '*.rom' | sort > /tmp/filelist.txt
+          file_selector "/tmp/filelist.txt" "Choose the ROM to flash"
+          if [ "$FILE" == "" ]; then
+            return
+          else
+            ROM=$FILE
+          fi
+        fi
+      fi
+      if [ -z "$ROM" ] && (whiptail --title 'Flash the BIOS with a new ROM' \
+        --yesno "You will need to insert a USB drive containing your BIOS image (*.rom).\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount_usb
         if grep -q /media /proc/mounts ; then
           find /media ! -path '*/\.*' -type f -name '*.rom' | sort > /tmp/filelist.txt
@@ -32,30 +44,35 @@ while true; do
           else
             ROM=$FILE
           fi
-
-          if (whiptail --title 'Flash ROM?' \
-              --yesno "This will replace your current ROM with:\n\n$ROM\n\nDo you want to proceed?" 16 60) then
-            if [ "$menu_choice" == "c" ]; then
-              /bin/flash.sh -c "$ROM"
-              # after flash, /boot signatures are now invalid so go ahead and clear them
-              if ls /boot/kexec* >/dev/null 2>&1 ; then
-                (
-                  mount -o remount,rw /boot 2>/dev/null
-                  rm /boot/kexec* 2>/dev/null
-                  mount -o remount,ro /boot 2>/dev/null
-                )
-              fi
-            else
-              /bin/flash.sh "$ROM"
-            fi
-            whiptail --title 'ROM Flashed Successfully' \
-              --msgbox "$ROM flashed successfully.\n\nPress Enter to reboot\n" 16 60
-            umount /media
-            /bin/reboot
-          else
-            exit
-          fi
         fi
+      fi
+      if [ -n "$ROM" ];then
+        if (whiptail --title 'Flash ROM?' \
+            --yesno "This will replace your current ROM with:\n\n$ROM\n\nDo you want to proceed?" 16 60) then
+          if [ "$menu_choice" == "c" ]; then
+            /bin/flash.sh -c "$ROM"
+            # after flash, /boot signatures are now invalid so go ahead and clear them
+            if ls /boot/kexec* >/dev/null 2>&1 ; then
+              (
+                mount -o remount,rw /boot 2>/dev/null
+                rm /boot/kexec* 2>/dev/null
+                mount -o remount,ro /boot 2>/dev/null
+              )
+            fi
+          else
+            /bin/flash.sh "$ROM"
+          fi
+          whiptail --title 'ROM Flashed Successfully' \
+            --msgbox "$ROM flashed successfully.\n\nPress Enter to reboot\n" 16 60
+          if grep -q /media /proc/mounts ; then
+            umount /media
+          fi
+          /bin/reboot
+        else
+          exit
+        fi
+      else
+        exit
       fi
     ;;
   esac
