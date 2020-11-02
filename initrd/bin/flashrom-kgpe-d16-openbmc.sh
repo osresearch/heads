@@ -1,5 +1,6 @@
-#!/bin/sh
-. /etc/functions
+#!/bin/bash
+#
+. /etc/functions.sh
 
 ROM="$1"
 if [ -z "$1" ]; then

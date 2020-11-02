@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 #
 set -e -o pipefail
-. /etc/functions
-. /etc/gui_functions
+. /etc/functions.sh
+. /etc/gui_functions.sh
 . /tmp/config
 
 while true; do
@@ -26,7 +26,7 @@ while true; do
         mount_usb
         if grep -q /media /proc/mounts ; then
           find /media ! -path '*/\.*' -type f -name '*.rom' | sort > /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose the ROM to flash"
+          FILE=$(file_selector "/tmp/filelist.txt" "Choose the ROM to flash")
           if [ "$FILE" == "" ]; then
             return
           else
@@ -51,7 +51,7 @@ while true; do
             whiptail --title 'ROM Flashed Successfully' \
               --msgbox "${ROM#"/media/"}\n\nhas been flashed successfully.\n\nPress Enter to reboot\n" 16 60
             umount /media
-            /bin/reboot
+            /bin/reboot.sh
           else
             exit
           fi

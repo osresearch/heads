@@ -1,20 +1,21 @@
-#!/bin/sh
+#!/bin/bash
 #
 set -e -o pipefail
-. /etc/functions
-. /etc/gui_functions
+. /etc/functions.sh
+. /etc/gui_functions.sh
 . /tmp/config
 
 gpg_flash_rom() {
 
-  if [ "$1" = "replace" ]; then
-    # clear local keyring
-    [ -e /.gnupg/pubring.gpg ] && rm /.gnupg/pubring.gpg
-    [ -e /.gnupg/pubring.kbx ] && rm /.gnupg/pubring.kbx
-    [ -e /.gnupg/trustdb.gpg ] && rm /.gnupg/trustdb.gpg
-  fi
+  #  XXX: Thrilleratplay 2020-10-21 - commented out as "replace" does not seem to be ever passed in.
+  # if [ "$1" = "replace" ]; then
+  #   # clear local keyring
+  #   [ -e /.gnupg/pubring.gpg ] && rm /.gnupg/pubring.gpg
+  #   [ -e /.gnupg/pubring.kbx ] && rm /.gnupg/pubring.kbx
+  #   [ -e /.gnupg/trustdb.gpg ] && rm /.gnupg/trustdb.gpg
+  # fi
 
-  cat "$PUBKEY" | gpg --import
+  gpg --import "$PUBKEY"
   #update /.gnupg/trustdb.gpg to ultimately trust all user provided public keys
   gpg --list-keys --fingerprint --with-colons |sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' |gpg --import-ownertrust
   gpg --update-trust
@@ -65,26 +66,27 @@ gpg_flash_rom() {
       --yesno "Would you like to update the checksums and sign all of the files in /boot?\n\nYou will need your GPG key to continue and this will modify your disk.\n\nOtherwise the system will reboot immediately." 16 90) then
     update_checksums
   else
-    /bin/reboot
+    /bin/reboot.sh
   fi
 
   whiptail --title 'Files in /boot Updated Successfully'\
     --msgbox "Checksums have been updated and /boot files signed.\n\nPress Enter to reboot" 16 60
-  /bin/reboot
-  
+  /bin/reboot.sh
+
 }
 gpg_post_gen_mgmt() {
-  GPG_GEN_KEY=`grep -A1 pub /tmp/gpg_card_edit_output | tail -n1 | sed -nr 's/^([ ])*//p'`
-  gpg --export --armor $GPG_GEN_KEY > "/tmp/${GPG_GEN_KEY}.asc"
+  GPG_GEN_KEY=$(grep -A1 pub /tmp/gpg_card_edit_output | tail -n1 | sed -nr 's/^([ ])*//p')
+  gpg --export --armor "$GPG_GEN_KEY" > "/tmp/${GPG_GEN_KEY}.asc"
   if (whiptail --title 'Add Public Key to USB disk?' \
       --yesno "Would you like to copy the GPG public key you generated to a USB disk?\n\nYou may need it, if you want to use it outside of Heads later.\n\nThe file will show up as ${GPG_GEN_KEY}.asc" 16 90) then
     mount_usb
     mount -o remount,rw /media
-    cp "/tmp/${GPG_GEN_KEY}.asc" "/media/${GPG_GEN_KEY}.asc"
-    if [ $? -eq 0 ]; then
+
+    if ! cp "/tmp/${GPG_GEN_KEY}.asc" "/media/${GPG_GEN_KEY}.asc"; then
       whiptail --title "The GPG Key Copied Successfully" \
         --msgbox "${GPG_GEN_KEY}.asc copied successfully." 16 60
     else
+      # shellcheck disable=2086
       whiptail $BG_COLOR_ERROR --title 'ERROR: Copy Failed' \
         --msgbox "Unable to copy ${GPG_GEN_KEY}.asc to /media" 16 60
     fi
@@ -94,6 +96,7 @@ gpg_post_gen_mgmt() {
       --yesno "Would you like to add the GPG public key you generated to the BIOS?\n\nThis makes it a trusted key used to sign files in /boot\n\n" 16 90) then
       /bin/flash.sh -r /tmp/gpg-gui.rom
       if [ ! -s /tmp/gpg-gui.rom ]; then
+        # shellcheck disable=2086
         whiptail $BG_COLOR_ERROR --title 'ERROR: BIOS Read Failed!' \
           --msgbox "Unable to read BIOS" 16 60
         exit 1
@@ -110,7 +113,7 @@ gpg_add_key_reflash() {
     if grep -q /media /proc/mounts ; then
       find /media -name '*.key' > /tmp/filelist.txt
       find /media -name '*.asc' >> /tmp/filelist.txt
-      file_selector "/tmp/filelist.txt" "Choose your GPG public key"
+      FILE=$(file_selector "/tmp/filelist.txt" "Choose your GPG public key")
       # bail if user didn't select a file
       if [ "$FILE" = "" ]; then
         return
@@ -120,6 +123,7 @@ gpg_add_key_reflash() {
 
       /bin/flash.sh -r /tmp/gpg-gui.rom
       if [ ! -s /tmp/gpg-gui.rom ]; then
+        # shellcheck disable=2086
         whiptail $BG_COLOR_ERROR --title 'ERROR: BIOS Read Failed!' \
           --msgbox "Unable to read BIOS" 16 60
         exit 1
@@ -161,7 +165,7 @@ while true; do
         if grep -q /media /proc/mounts ; then
           find /media -name '*.key' > /tmp/filelist.txt
           find /media -name '*.asc' >> /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose your GPG public key"
+          FILE=$(file_selector "/tmp/filelist.txt" "Choose your GPG public key")
           if [ "$FILE" == "" ]; then
             return
           else
@@ -169,7 +173,7 @@ while true; do
           fi
 
           find /media -name '*.rom' > /tmp/filelist.txt
-          file_selector "/tmp/filelist.txt" "Choose the ROM to load your key onto"
+          FILE=$(file_selector "/tmp/filelist.txt" "Choose the ROM to load your key onto")
           if [ "$FILE" == "" ]; then
             return
           else
@@ -199,7 +203,7 @@ while true; do
       gpg_add_key_reflash
     ;;
     "l" )
-      GPG_KEYRING=`gpg -k`
+      GPG_KEYRING=$(gpg -k)
       whiptail --title 'GPG Keyring' \
         --msgbox "${GPG_KEYRING}" 16 60
     ;;
@@ -209,11 +213,12 @@ while true; do
         mount_usb
         mount -o remount,rw /media
         gpg --export --armor > "/tmp/public-key.asc"
-        cp "/tmp/public-key.asc" "/media/public-key.asc"
-        if [ $? -eq 0 ]; then
+
+        if ! cp "/tmp/public-key.asc" "/media/public-key.asc"; then
           whiptail --title "The GPG Key Copied Successfully" \
             --msgbox "public-key.asc copied successfully." 16 60
         else
+          # shellcheck disable=2086
           whiptail $BG_COLOR_ERROR --title 'ERROR: Copy Failed' \
             --msgbox "Unable to copy public-key.asc to /media" 16 60
         fi
@@ -230,8 +235,8 @@ while true; do
       echo "* Type 'quit' once you have generated the key to exit GPG."
       echo "*"
       echo "********************************************************************************"
-      gpg --card-edit > /tmp/gpg_card_edit_output
-      if [ $? -eq 0 ]; then
+
+      if ! gpg --card-edit > /tmp/gpg_card_edit_output; then
         gpg_post_gen_mgmt
       fi
     ;;

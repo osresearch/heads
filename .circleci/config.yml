@@ -1,4 +1,5 @@
 version: 2
+
 jobs:
   build:
     docker:
@@ -8,7 +9,7 @@ jobs:
           name: Install dependencies
           command: |
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync shellcheck
       - checkout
 
       - run:
@@ -26,7 +27,10 @@ jobs:
           command: |
             find modules/musl-cross* -type f | sort -h | xargs sha256sum > /tmp/musl-cross_module_and_patches.sha256sums \
 
-
+      - run:
+          name: Check scripts in ./initrd with Shellcheck
+          command: |
+            make check-scripts
       - restore_cache:
           keys:
             #Restore existing cache for modules checksums validated to be exactly the same as in github current commit

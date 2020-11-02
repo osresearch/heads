@@ -1,14 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 #
 set -e -o pipefail
-. /etc/functions
-. /etc/gui_functions
+. /etc/functions.sh
+. /etc/gui_functions.sh
 . /tmp/config
 
 param=$1
 
 while true; do
-  if [ ! -z "$param" ]; then
+  if [ -n "$param" ]; then
     # use first char from parameter
     menu_choice=${param::1}
     unset param
@@ -30,22 +30,24 @@ while true; do
       exit 0
     ;;
     "b" )
-      CURRENT_OPTION=`grep 'CONFIG_BOOT_DEV=' /tmp/config | tail -n1 | cut -f2 -d '=' | tr -d '"'`
+      CURRENT_OPTION=$(grep 'CONFIG_BOOT_DEV=' /tmp/config | tail -n1 | cut -f2 -d '=' | tr -d '"')
       fdisk -l | grep "Disk" | cut -f2 -d " " | cut -f1 -d ":" > /tmp/disklist.txt
       # filter out extraneous options
-      > /tmp/boot_device_list.txt
-      for i in `cat /tmp/disklist.txt`; do
+      # > /tmp/boot_device_list.txt
+      DISK_LIST=$(cat /tmp/disklist.txt)
+      for i in $DISK_LIST; do
         # remove block device from list if numeric partitions exist, since not bootable
-        DEV_NUM_PARTITIONS=$((`ls -1 $i* | wc -l`-1))
+        DEV_PARITIONS=$(find "$i*" | wc -l)
+        DEV_NUM_PARTITIONS=$((DEV_PARITIONS-1))
         if [ ${DEV_NUM_PARTITIONS} -eq 0 ]; then
-          echo $i >> /tmp/boot_device_list.txt
+          echo "$i" >> /tmp/boot_device_list.txt
         else
-          ls $i* | tail -${DEV_NUM_PARTITIONS} >> /tmp/boot_device_list.txt
+          find "$i*" | tail -${DEV_NUM_PARTITIONS} >> /tmp/boot_device_list.txt
         fi
       done
-      file_selector "/tmp/boot_device_list.txt" \
+      FILE=$(file_selector "/tmp/boot_device_list.txt" \
           "Choose the default /boot device.\n\nCurrently set to $CURRENT_OPTION." \
-          "Boot Device Selection"
+          "Boot Device Selection")
       if [ "$FILE" == "" ]; then
         return
       else
@@ -57,8 +59,9 @@ while true; do
         umount /boot 2>/dev/null
       fi
       # mount newly selected /boot device
-      if ! mount -o ro $SELECTED_FILE /boot 2>/tmp/error ; then
-        ERROR=`cat /tmp/error`
+      if ! mount -o ro "$SELECTED_FILE" /boot 2>/tmp/error ; then
+        ERROR=$(cat /tmp/error)
+        # shellcheck disable=2086
         whiptail $BG_COLOR_ERROR --title 'ERROR: unable to mount /boot' \
           --msgbox "    $ERROR\n\n" 16 60
         exit 1
@@ -73,6 +76,7 @@ while true; do
     "s" )
       /bin/flash.sh -r /tmp/config-gui.rom
       if [ ! -s /tmp/config-gui.rom ]; then
+        # shellcheck disable=2086
         whiptail $BG_COLOR_ERROR --title 'ERROR: BIOS Read Failed!' \
           --msgbox "Unable to read BIOS" 16 60
         exit 1
@@ -88,7 +92,7 @@ while true; do
         /bin/flash.sh /tmp/config-gui.rom
         whiptail --title 'BIOS Updated Successfully' \
           --msgbox "BIOS updated successfully.\n\nIf your keys have changed, be sure to re-sign all files in /boot\nafter you reboot.\n\nPress Enter to reboot" 16 60
-        /bin/reboot
+        /bin/reboot.sh
       else
         exit 0
       fi
@@ -103,29 +107,30 @@ while true; do
         # read current firmware
         /bin/flash.sh -r /tmp/config-gui.rom
         if [ ! -s /tmp/config-gui.rom ]; then
+          # shellcheck disable=2086
           whiptail $BG_COLOR_ERROR --title 'ERROR: BIOS Read Failed!' \
             --msgbox "Unable to read BIOS" 16 60
           exit 1
         fi
         # clear local keyring
-        rm /.gnupg/* | true
+        rm /.gnupg/* || true
         # clear /boot signatures/checksums
         mount -o remount,rw /boot
-        rm /boot/kexec* | true
+        rm /boot/kexec* || true
         mount -o remount,ro /boot
         # clear GPG keys and user settings
-        for i in `cbfs -o /tmp/config-gui.rom -l | grep -e "heads/"`; do
-          cbfs -o /tmp/config-gui.rom -d $i
+        for i in $(cbfs -o /tmp/config-gui.rom -l | grep -e "heads/"); do
+          cbfs -o /tmp/config-gui.rom -d "$i"
         done
         # flash cleared ROM
         /bin/flash.sh -c /tmp/config-gui.rom
         # reset TPM if present
         if [ "$CONFIG_TPM" = "y" ]; then
-          /bin/tpm-reset
+          /bin/tpm-reset.sh
         fi
         whiptail --title 'Configuration Reset Updated Successfully' \
           --msgbox "Configuration reset and BIOS updated successfully.\n\nPress Enter to reboot" 16 60
-        /bin/reboot
+        /bin/reboot.sh
       else
         exit 0
       fi

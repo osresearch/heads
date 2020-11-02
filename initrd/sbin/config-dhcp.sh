@@ -1,6 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 # udhcpc script
+
+# shellcheck disable=SC2154
 
 [ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
 
@@ -10,35 +12,34 @@ RESOLV_CONF="/etc/resolv.conf"
 
 case "$1" in
 	deconfig)
-		grep -q -v ip= /proc/cmdline
-		if [ $? -eq 0 ]; then
-			/sbin/ifconfig $interface up
+		if ! grep -q -v ip= /proc/cmdline; then
+			/sbin/ifconfig "$interface" up
 		fi
-		grep -q -v nfsroot= /proc/cmdline
-		if [ $? -eq 0 ]; then
-			/sbin/ifconfig $interface 0.0.0.0
+
+		if ! grep -q -v nfsroot= /proc/cmdline; then
+			/sbin/ifconfig "$interface" 0.0.0.0
 		fi
 		;;
 
 	renew|bound)
-		/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
+		/sbin/ifconfig "$interface" "$ip" "$BROADCAST" "$NETMASK"
 
 		if [ -n "$router" ] ; then
 			echo "deleting routers"
-			while route del default gw 0.0.0.0 dev $interface ; do
+			while route del default gw 0.0.0.0 dev "$interface" ; do
 				:
 			done
 
 			for i in $router ; do
-				route add default gw $i dev $interface
+				route add default gw "$i" dev "$interface"
 			done
 		fi
 
 		echo -n > $RESOLV_CONF
-		[ -n "$domain" ] && echo search $domain >> $RESOLV_CONF
-		for i in $dns ; do
-			echo adding dns $i
-			echo nameserver $i >> $RESOLV_CONF
+		[ -n "$domain" ] && echo search "$domain" >> $RESOLV_CONF
+		for i in $dns; do
+			echo adding dns "$i"
+			echo nameserver "$i" >> $RESOLV_CONF
 		done
 		;;
 esac
