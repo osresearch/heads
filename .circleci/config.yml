@@ -365,6 +365,26 @@ jobs:
           path: build/x200-maximized
 
       - run:
+          name: t400-maximized
+          command: |
+            rm -rf build/t400-maximized/* build/log/* && make CPUS=4 V=1 BOARD=t400-maximized  || touch /tmp/failed_build
+          no_output_timeout: 3h
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f /tmp/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi
+      - run:
+          name: Ouput t400-maximized hashes
+          command: |
+            cat build/t400-maximized/hashes.txt \
+      - run:
+          name: Archiving build logs for t400-maximized
+          command: |
+             tar zcvf build/t400-maximized/logs.tar.gz build/log/*
+      - store-artifacts:
+          path: build/t400-maximized
+
+      - run:
           name: t430
           command: |
             rm -rf build/t430/* build/log/* && make CPUS=4 V=1 BOARD=t430 || touch /tmp/failed_build
