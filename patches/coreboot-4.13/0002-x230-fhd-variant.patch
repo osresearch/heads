@@ -1,0 +1,568 @@
+From 0ed94cb09818c22a9e5aa5f2c3562d507317b614 Mon Sep 17 00:00:00 2001
+From: Alexander Couzens <lynxis@fe80.eu>
+Date: Sat, 06 Oct 2018 00:31:49 +0200
+Subject: [PATCH] lenovo/x230: introduce FHD variant
+
+There is a modification for the x230 which uses the 2nd DP from the dock
+as the integrated panel's connection, which allows using a Full HD (FHD)
+eDP panel instead of the stock LVDS display.
+
+To make this work with coreboot, the internal LVDS connector should be
+disabled in libgfxinit. The VBT has been modified as well, which allows
+brightness controls to work out of the box.
+
+The modifications done to the VBT are:
+- Remove the LVDS port entry.
+- Move the DP-3 (which is the 2nd DP on the dock) entry to the first
+  position on the list.
+- Set the DP-3 as internally connected.
+
+This has been reported to work with panel LP125WF2 SPB4.
+
+Change-Id: I0355d39a61956792e69bccd5274cfc2749d72bf0
+Signed-off-by: Alexander Couzens <lynxis@fe80.eu>
+---
+
+diff --git a/src/mainboard/lenovo/x230/Kconfig b/src/mainboard/lenovo/x230/Kconfig
+index a6fdd7b..492faca 100644
+--- a/src/mainboard/lenovo/x230/Kconfig
++++ b/src/mainboard/lenovo/x230/Kconfig
+@@ -1,4 +1,4 @@
+-if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T || BOARD_LENOVO_X230S
++if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T || BOARD_LENOVO_X230S || BOARD_LENOVO_X230_FHD
+ 
+ config BOARD_SPECIFIC_OPTIONS
+ 	def_bool y
+@@ -11,7 +11,7 @@
+ 	select H8_HAS_BAT_TRESHOLDS_IMPL
+ 	select H8_HAS_PRIMARY_FN_KEYS if BOARD_LENOVO_X230S
+ 	select NO_UART_ON_SUPERIO
+-	select BOARD_ROMSIZE_KB_12288 if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T
++	select BOARD_ROMSIZE_KB_12288 if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T || BOARD_LENOVO_X230_FHD
+ 	select BOARD_ROMSIZE_KB_16384 if BOARD_LENOVO_X230S
+ 	select HAVE_ACPI_TABLES
+ 	select HAVE_OPTION_TABLE
+@@ -20,9 +20,10 @@
+ 	select INTEL_INT15
+ 	select DRIVERS_RICOH_RCE822
+ 	select MAINBOARD_HAS_LPC_TPM
+-	select MAINBOARD_HAS_TPM1 if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T
++	select MAINBOARD_HAS_TPM1 if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T || BOARD_LENOVO_X230_FHD
+ 	select MAINBOARD_HAS_LIBGFXINIT
+ 	select GFX_GMA_PANEL_1_ON_LVDS if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T
++	select GFX_GMA_PANEL_1_ON_EDP if BOARD_LENOVO_X230_FHD
+ 	select INTEL_GMA_HAVE_VBT
+ 	select MAINBOARD_USES_IFD_GBE_REGION
+ 
+@@ -56,12 +57,14 @@
+ 	string
+ 	default "x230" if BOARD_LENOVO_X230 || BOARD_LENOVO_X230T
+ 	default "x230s" if BOARD_LENOVO_X230S
++	default "x230_fhd" if BOARD_LENOVO_X230_FHD
+ 
+ config MAINBOARD_PART_NUMBER
+ 	string
+ 	default "ThinkPad X230" if BOARD_LENOVO_X230
+ 	default "ThinkPad X230t" if BOARD_LENOVO_X230T
+ 	default "ThinkPad X230s" if BOARD_LENOVO_X230S
++	default "ThinkPad X230 FHD" if BOARD_LENOVO_X230_FHD
+ 
+ config OVERRIDE_DEVICETREE
+ 	string
+@@ -92,4 +95,4 @@
+ config THINKPADEC_HKEY_EISAID
+ 	default "LEN0068"
+ 
+-endif # BOARD_LENOVO_X230 || BOARD_LENOVO_X230T ||  BOARD_LENOVO_X230S
++endif # BOARD_LENOVO_X230 || BOARD_LENOVO_X230T ||  BOARD_LENOVO_X230S || BOARD_LENOVO_X230_FHD
+diff --git a/src/mainboard/lenovo/x230/Kconfig.name b/src/mainboard/lenovo/x230/Kconfig.name
+index 1a01436..7906dee 100644
+--- a/src/mainboard/lenovo/x230/Kconfig.name
++++ b/src/mainboard/lenovo/x230/Kconfig.name
+@@ -6,3 +6,6 @@
+ 
+ config BOARD_LENOVO_X230S
+ 	bool "ThinkPad X230s"
++
++config BOARD_LENOVO_X230_FHD
++	bool "ThinkPad X230 Nitrocaster Full HD mod"
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/board_info.txt b/src/mainboard/lenovo/x230/variants/x230_fhd/board_info.txt
+new file mode 100644
+index 0000000..7be565b
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/board_info.txt
+@@ -0,0 +1,7 @@
++Category: laptop
++Board name: ThinkPad X230 FHD
++ROM package: SOIC-8
++ROM protocol: SPI
++ROM socketed: n
++Flashrom support: n
++Release year: 2012
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/data.vbt b/src/mainboard/lenovo/x230/variants/x230_fhd/data.vbt
+new file mode 100644
+index 0000000..1aaf542
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/data.vbt
+Binary files differ
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/early_init.c b/src/mainboard/lenovo/x230/variants/x230_fhd/early_init.c
+new file mode 100644
+index 0000000..9c97a19
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/early_init.c
+@@ -0,0 +1,28 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <northbridge/intel/sandybridge/raminit_native.h>
++#include <southbridge/intel/bd82x6x/pch.h>
++#include <southbridge/intel/common/gpio.h>
++
++const struct southbridge_usb_port mainboard_usb_ports[] = {
++	{ 1, 0, 0 }, /* P0 (left, fan side), OC 0 */
++	{ 1, 0, 1 }, /* P1 (left touchpad side), OC 1 */
++	{ 1, 1, 3 }, /* P2: dock, OC 3 */
++	{ 1, 1, -1 }, /* P3: wwan, no OC */
++	{ 1, 1, -1 }, /* P4: Wacom tablet on X230t, otherwise empty */
++	{ 1, 1, -1 }, /* P5: Expresscard, no OC */
++	{ 0, 0, -1 }, /* P6: Empty */
++	{ 1, 2, -1 }, /* P7: dock, no OC */
++	{ 1, 0, -1 },
++	{ 1, 2, 5 }, /* P9: Right (EHCI debug), OC 5 */
++	{ 1, 1, -1 }, /* P10: fingerprint reader, no OC */
++	{ 1, 1, -1 }, /* P11: bluetooth, no OC. */
++	{ 1, 1, -1 }, /* P12: wlan, no OC */
++	{ 1, 1, -1 }, /* P13: webcam, no OC */
++};
++
++void mainboard_get_spd(spd_raw_data *spd, bool id_only)
++{
++	read_spd (&spd[0], 0x50, id_only);
++	read_spd (&spd[2], 0x51, id_only);
++}
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/gma-mainboard.ads b/src/mainboard/lenovo/x230/variants/x230_fhd/gma-mainboard.ads
+new file mode 100644
+index 0000000..f7cf0bc
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/gma-mainboard.ads
+@@ -0,0 +1,21 @@
++-- SPDX-License-Identifier: GPL-2.0-or-later
++
++with HW.GFX.GMA;
++with HW.GFX.GMA.Display_Probing;
++
++use HW.GFX.GMA;
++use HW.GFX.GMA.Display_Probing;
++
++private package GMA.Mainboard is
++
++   ports : constant Port_List :=
++     (DP1,
++      DP2,
++      DP3,
++      HDMI1,
++      HDMI2,
++      HDMI3,
++      Analog,
++      others => Disabled);
++
++end GMA.Mainboard;
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/gpio.c b/src/mainboard/lenovo/x230/variants/x230_fhd/gpio.c
+new file mode 100644
+index 0000000..8de285b
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/gpio.c
+@@ -0,0 +1,284 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++#include <southbridge/intel/common/gpio.h>
++
++static const struct pch_gpio_set1 pch_gpio_set1_mode = {
++	.gpio0  = GPIO_MODE_GPIO,
++	.gpio1  = GPIO_MODE_GPIO,
++	.gpio2  = GPIO_MODE_GPIO,
++	.gpio3  = GPIO_MODE_GPIO,
++	.gpio4  = GPIO_MODE_GPIO,
++	.gpio5  = GPIO_MODE_GPIO,
++	.gpio6  = GPIO_MODE_GPIO,
++	.gpio7  = GPIO_MODE_GPIO,
++	.gpio8  = GPIO_MODE_GPIO,
++	.gpio9  = GPIO_MODE_NATIVE,
++	.gpio10 = GPIO_MODE_GPIO,
++	.gpio11 = GPIO_MODE_NATIVE,
++	.gpio12 = GPIO_MODE_NATIVE,
++	.gpio13 = GPIO_MODE_GPIO,
++	.gpio14 = GPIO_MODE_NATIVE,
++	.gpio15 = GPIO_MODE_GPIO,
++	.gpio16 = GPIO_MODE_NATIVE,
++	.gpio17 = GPIO_MODE_GPIO,
++	.gpio18 = GPIO_MODE_NATIVE,
++	.gpio19 = GPIO_MODE_NATIVE,
++	.gpio20 = GPIO_MODE_NATIVE,
++	.gpio21 = GPIO_MODE_GPIO,
++	.gpio22 = GPIO_MODE_GPIO,
++	.gpio23 = GPIO_MODE_NATIVE,
++	.gpio24 = GPIO_MODE_GPIO,
++	.gpio25 = GPIO_MODE_NATIVE,
++	.gpio26 = GPIO_MODE_NATIVE,
++	.gpio27 = GPIO_MODE_GPIO,
++	.gpio28 = GPIO_MODE_GPIO,
++	.gpio29 = GPIO_MODE_GPIO,
++	.gpio30 = GPIO_MODE_NATIVE,
++	.gpio31 = GPIO_MODE_NATIVE,
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_direction = {
++	.gpio0  = GPIO_DIR_INPUT,
++	.gpio1  = GPIO_DIR_INPUT,
++	.gpio2  = GPIO_DIR_INPUT,
++	.gpio3  = GPIO_DIR_INPUT,
++	.gpio4  = GPIO_DIR_INPUT,
++	.gpio5  = GPIO_DIR_INPUT,
++	.gpio6  = GPIO_DIR_INPUT,
++	.gpio7  = GPIO_DIR_INPUT,
++	.gpio8  = GPIO_DIR_OUTPUT,
++	.gpio9  = GPIO_DIR_INPUT,
++	.gpio10 = GPIO_DIR_OUTPUT,
++	.gpio11 = GPIO_DIR_INPUT,
++	.gpio12 = GPIO_DIR_OUTPUT,
++	.gpio13 = GPIO_DIR_INPUT,
++	.gpio14 = GPIO_DIR_INPUT,
++	.gpio15 = GPIO_DIR_OUTPUT,
++	.gpio16 = GPIO_DIR_INPUT,
++	.gpio17 = GPIO_DIR_INPUT,
++	.gpio18 = GPIO_DIR_INPUT,
++	.gpio19 = GPIO_DIR_INPUT,
++	.gpio20 = GPIO_DIR_INPUT,
++	.gpio21 = GPIO_DIR_INPUT,
++	.gpio22 = GPIO_DIR_OUTPUT,
++	.gpio23 = GPIO_DIR_INPUT,
++	.gpio24 = GPIO_DIR_OUTPUT,
++	.gpio25 = GPIO_DIR_INPUT,
++	.gpio26 = GPIO_DIR_INPUT,
++	.gpio27 = GPIO_DIR_INPUT,
++	.gpio28 = GPIO_DIR_OUTPUT,
++	.gpio29 = GPIO_DIR_OUTPUT,
++	.gpio30 = GPIO_DIR_OUTPUT,
++	.gpio31 = GPIO_DIR_INPUT
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_level = {
++	.gpio0  = GPIO_LEVEL_HIGH,
++	.gpio1  = GPIO_LEVEL_HIGH,
++	.gpio2  = GPIO_LEVEL_LOW,
++	.gpio3  = GPIO_LEVEL_HIGH,
++	.gpio4  = GPIO_LEVEL_HIGH,
++	.gpio5  = GPIO_LEVEL_HIGH,
++	.gpio6  = GPIO_LEVEL_HIGH,
++	.gpio7  = GPIO_LEVEL_HIGH,
++	.gpio8  = GPIO_LEVEL_LOW,
++	.gpio9  = GPIO_LEVEL_HIGH,
++	.gpio10 = GPIO_LEVEL_HIGH,
++	.gpio11 = GPIO_LEVEL_HIGH,
++	.gpio12 = GPIO_LEVEL_HIGH,
++	.gpio13 = GPIO_LEVEL_HIGH,
++	.gpio14 = GPIO_LEVEL_HIGH,
++	.gpio15 = GPIO_LEVEL_LOW,
++	.gpio16 = GPIO_LEVEL_HIGH,
++	.gpio17 = GPIO_LEVEL_HIGH,
++	.gpio18 = GPIO_LEVEL_HIGH,
++	.gpio19 = GPIO_LEVEL_HIGH,
++	.gpio20 = GPIO_LEVEL_HIGH,
++	.gpio21 = GPIO_LEVEL_HIGH,
++	.gpio22 = GPIO_LEVEL_HIGH,
++	.gpio23 = GPIO_LEVEL_HIGH,
++	.gpio24 = GPIO_LEVEL_LOW,
++	.gpio25 = GPIO_LEVEL_HIGH,
++	.gpio26 = GPIO_LEVEL_HIGH,
++	.gpio27 = GPIO_LEVEL_LOW,
++	.gpio28 = GPIO_LEVEL_LOW,
++	.gpio29 = GPIO_LEVEL_HIGH,
++	.gpio30 = GPIO_LEVEL_HIGH,
++	.gpio31 = GPIO_LEVEL_LOW,
++};
++
++static const struct pch_gpio_set1 pch_gpio_set1_invert = {
++	.gpio1 = GPIO_INVERT,
++	.gpio6 = GPIO_INVERT,
++	.gpio13 = GPIO_INVERT,
++};
++
++static const struct pch_gpio_set2 pch_gpio_set2_mode = {
++	.gpio32 = GPIO_MODE_NATIVE,
++	.gpio33 = GPIO_MODE_GPIO,
++	.gpio34 = GPIO_MODE_GPIO,
++	.gpio35 = GPIO_MODE_GPIO,
++	.gpio36 = GPIO_MODE_GPIO,
++	.gpio37 = GPIO_MODE_GPIO,
++	.gpio38 = GPIO_MODE_GPIO,
++	.gpio39 = GPIO_MODE_GPIO,
++	.gpio40 = GPIO_MODE_NATIVE,
++	.gpio41 = GPIO_MODE_NATIVE,
++	.gpio42 = GPIO_MODE_NATIVE,
++	.gpio43 = GPIO_MODE_GPIO,
++	.gpio44 = GPIO_MODE_NATIVE,
++	.gpio45 = GPIO_MODE_NATIVE,
++	.gpio46 = GPIO_MODE_NATIVE,
++	.gpio47 = GPIO_MODE_NATIVE,
++	.gpio48 = GPIO_MODE_GPIO,
++	.gpio49 = GPIO_MODE_GPIO,
++	.gpio50 = GPIO_MODE_GPIO,
++	.gpio51 = GPIO_MODE_GPIO,
++	.gpio52 = GPIO_MODE_GPIO,
++	.gpio53 = GPIO_MODE_GPIO,
++	.gpio54 = GPIO_MODE_GPIO,
++	.gpio55 = GPIO_MODE_GPIO,
++	.gpio56 = GPIO_MODE_NATIVE,
++	.gpio57 = GPIO_MODE_GPIO,
++	.gpio58 = GPIO_MODE_NATIVE,
++	.gpio59 = GPIO_MODE_NATIVE,
++	.gpio60 = GPIO_MODE_NATIVE,
++	.gpio61 = GPIO_MODE_NATIVE,
++	.gpio62 = GPIO_MODE_NATIVE,
++	.gpio63 = GPIO_MODE_NATIVE,
++};
++
++static const struct pch_gpio_set2 pch_gpio_set2_direction = {
++	.gpio32 = GPIO_DIR_INPUT,
++	.gpio33 = GPIO_DIR_INPUT,
++	.gpio34 = GPIO_DIR_OUTPUT,
++	.gpio35 = GPIO_DIR_INPUT,
++	.gpio36 = GPIO_DIR_INPUT,
++	.gpio37 = GPIO_DIR_INPUT,
++	.gpio38 = GPIO_DIR_INPUT,
++	.gpio39 = GPIO_DIR_INPUT,
++	.gpio40 = GPIO_DIR_INPUT,
++	.gpio41 = GPIO_DIR_INPUT,
++	.gpio42 = GPIO_DIR_INPUT,
++	.gpio43 = GPIO_DIR_OUTPUT,
++	.gpio44 = GPIO_DIR_INPUT,
++	.gpio45 = GPIO_DIR_INPUT,
++	.gpio46 = GPIO_DIR_INPUT,
++	.gpio47 = GPIO_DIR_INPUT,
++	.gpio48 = GPIO_DIR_INPUT,
++	.gpio49 = GPIO_DIR_INPUT,
++	.gpio50 = GPIO_DIR_INPUT,
++	.gpio51 = GPIO_DIR_OUTPUT,
++	.gpio52 = GPIO_DIR_OUTPUT,
++	.gpio53 = GPIO_DIR_OUTPUT,
++	.gpio54 = GPIO_DIR_INPUT,
++	.gpio55 = GPIO_DIR_OUTPUT,
++	.gpio56 = GPIO_DIR_INPUT,
++	.gpio57 = GPIO_DIR_INPUT,
++	.gpio58 = GPIO_DIR_INPUT,
++	.gpio59 = GPIO_DIR_INPUT,
++	.gpio60 = GPIO_DIR_INPUT,
++	.gpio61 = GPIO_DIR_OUTPUT,
++	.gpio62 = GPIO_DIR_OUTPUT,
++	.gpio63 = GPIO_DIR_OUTPUT,
++};
++
++static const struct pch_gpio_set2 pch_gpio_set2_level = {
++	.gpio32 = GPIO_LEVEL_HIGH,
++	.gpio33 = GPIO_LEVEL_HIGH,
++	.gpio34 = GPIO_LEVEL_LOW,
++	.gpio35 = GPIO_LEVEL_LOW,
++	.gpio36 = GPIO_LEVEL_LOW,
++	.gpio37 = GPIO_LEVEL_LOW,
++	.gpio38 = GPIO_LEVEL_HIGH,
++	.gpio39 = GPIO_LEVEL_LOW,
++	.gpio40 = GPIO_LEVEL_HIGH,
++	.gpio41 = GPIO_LEVEL_HIGH,
++	.gpio42 = GPIO_LEVEL_HIGH,
++	.gpio43 = GPIO_LEVEL_HIGH,
++	.gpio44 = GPIO_LEVEL_HIGH,
++	.gpio45 = GPIO_LEVEL_HIGH,
++	.gpio46 = GPIO_LEVEL_HIGH,
++	.gpio47 = GPIO_LEVEL_HIGH,
++	.gpio48 = GPIO_LEVEL_HIGH,
++	.gpio49 = GPIO_LEVEL_HIGH,
++	.gpio50 = GPIO_LEVEL_HIGH,
++	.gpio51 = GPIO_LEVEL_HIGH,
++	.gpio52 = GPIO_LEVEL_HIGH,
++	.gpio53 = GPIO_LEVEL_HIGH,
++	.gpio54 = GPIO_LEVEL_HIGH,
++	.gpio55 = GPIO_LEVEL_HIGH,
++	.gpio56 = GPIO_LEVEL_HIGH,
++	.gpio57 = GPIO_LEVEL_HIGH,
++	.gpio58 = GPIO_LEVEL_HIGH,
++	.gpio59 = GPIO_LEVEL_HIGH,
++	.gpio60 = GPIO_LEVEL_HIGH,
++	.gpio61 = GPIO_LEVEL_HIGH,
++	.gpio62 = GPIO_LEVEL_LOW,
++	.gpio63 = GPIO_LEVEL_HIGH,
++};
++
++static const struct pch_gpio_set3 pch_gpio_set3_mode = {
++	.gpio64 = GPIO_MODE_GPIO,
++	.gpio65 = GPIO_MODE_GPIO,
++	.gpio66 = GPIO_MODE_GPIO,
++	.gpio67 = GPIO_MODE_GPIO,
++	.gpio68 = GPIO_MODE_GPIO,
++	.gpio69 = GPIO_MODE_GPIO,
++	.gpio70 = GPIO_MODE_GPIO,
++	.gpio71 = GPIO_MODE_GPIO,
++	.gpio72 = GPIO_MODE_NATIVE,
++	.gpio73 = GPIO_MODE_NATIVE,
++	.gpio74 = GPIO_MODE_NATIVE,
++	.gpio75 = GPIO_MODE_NATIVE,
++};
++
++static const struct pch_gpio_set3 pch_gpio_set3_direction = {
++	.gpio64 = GPIO_DIR_INPUT,
++	.gpio65 = GPIO_DIR_INPUT,
++	.gpio66 = GPIO_DIR_INPUT,
++	.gpio67 = GPIO_DIR_INPUT,
++	.gpio68 = GPIO_DIR_INPUT,
++	.gpio69 = GPIO_DIR_INPUT,
++	.gpio70 = GPIO_DIR_INPUT,
++	.gpio71 = GPIO_DIR_INPUT,
++	.gpio72 = GPIO_DIR_INPUT,
++	.gpio73 = GPIO_DIR_INPUT,
++	.gpio74 = GPIO_DIR_INPUT,
++	.gpio75 = GPIO_DIR_INPUT,
++};
++
++static const struct pch_gpio_set3 pch_gpio_set3_level = {
++	.gpio64 = GPIO_LEVEL_HIGH,
++	.gpio65 = GPIO_LEVEL_HIGH,
++	.gpio66 = GPIO_LEVEL_HIGH,
++	.gpio67 = GPIO_LEVEL_HIGH,
++	.gpio68 = GPIO_LEVEL_LOW,
++	.gpio69 = GPIO_LEVEL_LOW,
++	.gpio70 = GPIO_LEVEL_HIGH,
++	.gpio71 = GPIO_LEVEL_HIGH,
++	.gpio72 = GPIO_LEVEL_HIGH,
++	.gpio73 = GPIO_LEVEL_HIGH,
++	.gpio74 = GPIO_LEVEL_HIGH,
++	.gpio75 = GPIO_LEVEL_HIGH,
++};
++
++const struct pch_gpio_map mainboard_gpio_map = {
++	.set1 = {
++		.mode		= &pch_gpio_set1_mode,
++		.direction	= &pch_gpio_set1_direction,
++		.level		= &pch_gpio_set1_level,
++		.invert		= &pch_gpio_set1_invert,
++
++	},
++	.set2 = {
++		.mode		= &pch_gpio_set2_mode,
++		.direction	= &pch_gpio_set2_direction,
++		.level		= &pch_gpio_set2_level,
++	},
++	.set3 = {
++		.mode		= &pch_gpio_set3_mode,
++		.direction	= &pch_gpio_set3_direction,
++		.level		= &pch_gpio_set3_level,
++	},
++};
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/hda_verb.c b/src/mainboard/lenovo/x230/variants/x230_fhd/hda_verb.c
+new file mode 100644
+index 0000000..05fb3fd
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/hda_verb.c
+@@ -0,0 +1,82 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++
++/* Bits 31:28 - Codec Address */
++/* Bits 27:20 - NID */
++/* Bits 19:8 - Verb ID */
++/* Bits 7:0  - Payload */
++
++#include <device/azalia_device.h>
++
++const u32 cim_verb_data[] = {
++	/* --- Codec #0 --- */
++	0x10ec0269,	/* Codec Vendor / Device ID: Realtek ALC269VC */
++	0x17aa21fa,	/* Subsystem ID */
++	19,		/* Number of 4 dword sets */
++	AZALIA_SUBVENDOR(0, 0x17aa21fa),
++
++	/* Ext. Microphone Connector:	External,Right; MicIn,3.5mm; Black,JD; DA,Seq */
++	AZALIA_PIN_CFG(0, 0x0a, 0x04a11020),
++
++	/* Headphones Connector:	External,Right; HP,3.5mm; Black,JD; DA,Seq */
++	AZALIA_PIN_CFG(0, 0x0b, 0x0421101f),
++
++	/* Not connected:		N/A,N/A; Other,Unknown; Unknown,JD; DA,Seq */
++	AZALIA_PIN_CFG(0, 0x0c, 0x40f000f0),
++
++	/* Internal Speakers		Fixed,Int; Speaker,Other Analog; Unknown,nJD; DA,Seq */
++	AZALIA_PIN_CFG(0, 0x0d, 0x90170110),
++
++	/* Not connected */
++	AZALIA_PIN_CFG(0, 0x0f, 0x40f000f0),
++
++	/* Internal Microphone:		Fixed,Int,Top; Mic In,ATIPI; Unknown,nJD; DA,Seq */
++	AZALIA_PIN_CFG(0, 0x11, 0xd5a30140),
++	AZALIA_PIN_CFG(0, 0x12, 0x90a60140),
++	AZALIA_PIN_CFG(0, 0x14, 0x90170110),
++	AZALIA_PIN_CFG(0, 0x15, 0x03211020),
++	AZALIA_PIN_CFG(0, 0x18, 0x03a11830),
++	AZALIA_PIN_CFG(0, 0x19, 0x411111f0),
++	AZALIA_PIN_CFG(0, 0x1a, 0x411111f0),
++	AZALIA_PIN_CFG(0, 0x1d, 0x40138205),
++	AZALIA_PIN_CFG(0, 0x1e, 0x411111f0),
++
++	/* Misc entries */
++	0x01970804,
++	0x01870803,
++	0x01470740,
++	0x00970640,
++
++	0x00370680,
++	0x00270680,
++	0x01470c02,
++	0x01570c02,
++
++	/* ALC coefficients. */
++	/* 08 */
++	0x02050008,
++	0x02040700,
++	/* 18 */
++	0x02050018,
++	0x02045184,
++	/* 1c */
++	0x0205001c,
++	0x02042800,
++
++	0x01870724, /* Enable Vrefout for mic */
++	0x00170500, /* Set power state to D0 */
++
++	/* --- Codec #3 --- */
++	0x80862806,	/* Codec Vendor / Device ID: Intel PantherPoint HDMI */
++	0x80860101,	/* Subsystem ID */
++	4,		/* Number of 4 dword sets */
++	AZALIA_SUBVENDOR(3, 0x80860101),
++	AZALIA_PIN_CFG(3, 0x05, 0x18560010),
++	AZALIA_PIN_CFG(3, 0x06, 0x18560020),
++	AZALIA_PIN_CFG(3, 0x07, 0x18560030),
++};
++
++const u32 pc_beep_verbs[] = {
++	0x02177a00, /* Digital PCBEEP Gain: 0h=-9db, 1h=-6db ... 4h=+3db, 5h=+6db */
++};
++
++AZALIA_ARRAY_SIZES;
+diff --git a/src/mainboard/lenovo/x230/variants/x230_fhd/overridetree.cb b/src/mainboard/lenovo/x230/variants/x230_fhd/overridetree.cb
+new file mode 100644
+index 0000000..97e48b8
+--- /dev/null
++++ b/src/mainboard/lenovo/x230/variants/x230_fhd/overridetree.cb
+@@ -0,0 +1,16 @@
++chip northbridge/intel/sandybridge
++	device domain 0 on
++		chip southbridge/intel/bd82x6x # Intel Series 7 Panther Point PCH
++			register "docking_supported" = "1"
++			register "pcie_hotplug_map" = "{ 0, 0, 1, 0, 0, 0, 0, 0 }"
++			device pci 1c.2 on
++				smbios_slot_desc "7" "3" "ExpressCard Slot" "8"
++			end # PCIe Port #3 (expresscard)
++			device pci 1f.0 on # LPC bridge
++				chip ec/lenovo/h8
++					register "eventa_enable" = "0x01"
++				end
++			end # LPC Controller
++		end
++	end
++end
