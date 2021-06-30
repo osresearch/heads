@@ -1,5 +1,7 @@
 modules-y += linux
 
+CONFIG_LINUX_ARCH ?= x86
+
 ifeq "$(CONFIG_LINUX_VERSION)" "4.14.62"
 linux_version := 4.14.62
 linux_hash := 51ca4d7e8ee156dc0f19bc7768915cfae41dbb0b4f251e4fa8b178c5674c22ab
@@ -21,7 +23,7 @@ else
 $(error "$(BOARD): does not specify linux kernel version under CONFIG_LINUX_VERSION")
 endif 
 
-linux_base_dir := linux-$(linux_version)
+linux_base_dir := linux-$(linux_version)-$(CONFIG_LINUX_ARCH)
 
 # TODO: fixup the patch process
 # input file in the heads config/ dir
@@ -47,13 +49,14 @@ linux_configure := \
 		O="$(build)/$(linux_dir)" \
 		olddefconfig \
 
-linux_output += arch/x86/boot/bzImage
+linux_output += arch/$(CONFIG_LINUX_ARCH)/boot/bzImage
 
 # Once we have extracted the kernel tar file, install the headers
 # so that other submodules can make use of them.
 $(INSTALL)/include/linux/limits.h: $(build)/$(linux_base_dir)/.canary
 	$(MAKE) \
 		-C "$(build)/$(linux_base_dir)" \
+		ARCH="$(CONFIG_LINUX_ARCH)" \
 		INSTALL_HDR_PATH="$(INSTALL)" \
 		O="$(linux_dir)" \
 		KCONFIG_CONFIG="$(pwd)/$(linux_kconfig)" \
@@ -114,6 +117,7 @@ EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
 
 linux_target := \
 	O="$(build)/$(linux_dir)" \
+	ARCH="$(CONFIG_LINUX_ARCH)" \
 	CROSS_COMPILE="$(CROSS)" \
 	AFLAGS_KERNEL="$(EXTRA_FLAGS)" \
 	CFLAGS_KERNEL="$(EXTRA_FLAGS)" \

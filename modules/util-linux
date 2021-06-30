@@ -1,5 +1,7 @@
 modules-$(CONFIG_UTIL_LINUX) += util-linux
 
+CONFIG_UTIL_LINUX_TARGET ?= i386-elf-linux
+
 util-linux_version := 2.29.2
 util-linux_dir := util-linux-$(util-linux_version)
 util-linux_tar := util-linux-$(util-linux_version).tar.xz
@@ -8,7 +10,7 @@ util-linux_hash := accea4d678209f97f634f40a93b7e9fcad5915d1f4749f6c47bee6bf110fe
 
 util-linux_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--host i386-elf-linux \
+	--host "$(CONFIG_UTIL_LINUX_TARGET)" \
 	--prefix "/" \
 	--oldincludedir "$(INSTALL)/include" \
 	--without-ncurses \
