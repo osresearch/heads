@@ -1,6 +1,7 @@
 modules-y += linux
 
 CONFIG_LINUX_ARCH ?= x86
+CONFIG_LINUX_IMAGE_FILE ?= bzImage
 
 ifeq "$(CONFIG_LINUX_VERSION)" "4.14.62"
 linux_version := 4.14.62
@@ -49,7 +50,7 @@ linux_configure := \
 		O="$(build)/$(linux_dir)" \
 		olddefconfig \
 
-linux_output += arch/$(CONFIG_LINUX_ARCH)/boot/bzImage
+linux_output += arch/$(CONFIG_LINUX_ARCH)/boot/$(CONFIG_LINUX_IMAGE_FILE)
 
 # Once we have extracted the kernel tar file, install the headers
 # so that other submodules can make use of them.
@@ -168,10 +169,10 @@ $(build)/$(BOARD)/modules.cpio: $(build)/$(linux_dir)/.build
 	@$(RM) -rf "$(module_initrd_dir)"
 
 
-# The output of the linux.intermediate is the bzImage in the
-# linus build directory.  We need to copy it into our board
+# The output of the linux.intermediate is usually the bzImage in the
+# linux build directory.  We need to copy it into our board
 # specific directory for ease of locating it later.
-$(build)/$(BOARD)/bzImage: $(build)/$(linux_dir)/.build
+$(build)/$(BOARD)/$(CONFIG_LINUX_IMAGE_FILE): $(build)/$(linux_dir)/.build
 	$(call do-copy,$(dir $<)/$(linux_output),$@)
 	@touch $@ # force a timestamp update
 	@sha256sum "$@" | tee -a "$(HASHES)"
