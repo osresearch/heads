@@ -88,3 +88,16 @@ index 948ee63..833a897 100644
  
  $(BIN_TO_HEX): CC=$(BUILD_CC)
  $(BIN_TO_HEX): CFLAGS=$(BUILD_CFLAGS)
+diff --git a/purgatory/arch/ppc64/Makefile b/purgatory/arch/ppc64/Makefile
+index 8ca2719..3fc74aa 100644
+--- a/purgatory/arch/ppc64/Makefile
++++ b/purgatory/arch/ppc64/Makefile
+@@ -14,8 +14,6 @@ ppc64_PURGATORY_EXTRA_CFLAGS += -m64 -msoft-float \
+ ppc64_PURGATORY_EXTRA_ASFLAGS += -m64
+ ifeq ($(SUBARCH),BE)
+ 	ppc64_PURGATORY_EXTRA_LDFLAGS += -melf64ppc
+-	ppc64_PURGATORY_EXTRA_CFLAGS += -mcall-aixdesc
+-	ppc64_PURGATORY_EXTRA_ASFLAGS += -mcall-aixdesc
+ else
+ 	ppc64_PURGATORY_EXTRA_LDFLAGS += -melf64lppc
+ 	ppc64_PURGATORY_EXTRA_CFLAGS += -mlittle-endian
