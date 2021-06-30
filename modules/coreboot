@@ -17,6 +17,10 @@ else ifeq "$(CONFIG_COREBOOT_VERSION)" "4.13"
 	coreboot_hash := 4779da645a25ddebc78f1bd2bd0b740fb1e6479572648d4650042a2b9502856a
 	coreboot-blobs_hash := 060656b46a7859d038ddeec3f7e086e85f146a50b280c4babec23c1188264dc8
 	coreboot_depends := $(if $(CONFIG_PURISM_BLOBS), purism-blobs)
+else ifeq "$(CONFIG_COREBOOT_VERSION)" "talos_2_support_payload"
+	coreboot_version = git
+	coreboot_patch_version := talos_2_support_payload
+	coreboot_repo := -b talos_2_support_payload https://github.com/3mdeb/coreboot
 else
 	$(error "$(BOARD): does not specify coreboot version under CONFIG_COREBOOT_VERSION")
 endif 

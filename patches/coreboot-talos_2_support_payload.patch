@@ -1,0 +1,52 @@
+diff --git a/Makefile.inc b/Makefile.inc
+index 0bce7b69c0..eab3b90b58 100644
+--- a/Makefile.inc
++++ b/Makefile.inc
+@@ -545,7 +545,7 @@ IFWITOOL:=$(objutil)/cbfstool/ifwitool
+ IFITTOOL:=$(objutil)/cbfstool/ifittool
+ AMDCOMPRESS:=$(objutil)/cbfstool/amdcompress
+ ECCTOOL:=$(objutil)/ffs/ecc/ecc
+-SBSIGNTOOLS:=$(objutil)/sb-signing-utils
++SBSIGNTOOLS:=$(objutil)/sb-signing-utils/create-container
+ 
+ $(obj)/cbfstool: $(CBFSTOOL)
+ 	cp $< $@
+@@ -1185,7 +1185,7 @@ endif # CONFIG_CPU_INTEL_FIRMWARE_INTERFACE_TABLE
+ ifeq ($(CONFIG_ARCH_PPC64),y)
+ 	cp -r $(top)/3rdparty/sb-signing-utils/test/keys /tmp
+ 	@printf "    SBSIGN  $(subst $(obj)/,,$(@))\n"
+-	cd $(SBSIGNTOOLS) && ./sign-with-local-keys.sh $(top)/$@ $(top)/$@.signed 2> /dev/null
++	cd $(dir $(SBSIGNTOOLS)) && ./sign-with-local-keys.sh $(top)/$@ $(top)/$@.signed 2> /dev/null
+ 	@printf "    ECC     $(subst $(obj)/,,$(@))\n"
+ 	$(ECCTOOL) --inject $(top)/$@.signed --output $(top)/$@.signed.ecc --p8
+ ifeq ($(CONFIG_BOOTBLOCK_IN_SEEPROM),y)
+@@ -1193,7 +1193,7 @@ ifeq ($(CONFIG_BOOTBLOCK_IN_SEEPROM),y)
+ 	$(ECCTOOL) --inject $(top)/$(objcbfs)/bootblock.bin --output $(obj)/bootblock.ecc --p8
+ else
+ 	@printf "    SBSIGN  bootblock\n"
+-	cd $(SBSIGNTOOLS) && ./sign-with-local-keys.sh $(top)/$(objcbfs)/bootblock.bin $(top)/$(obj)/bootblock.signed 2> /dev/null
++	cd $(dir $(SBSIGNTOOLS)) && ./sign-with-local-keys.sh $(top)/$(objcbfs)/bootblock.bin $(top)/$(obj)/bootblock.signed 2> /dev/null
+ 	$(ECCTOOL) --inject $(top)/$@ --output $(top)/$@.ecc --p8
+ 	@printf "    ECC     bootblock\n"
+ 	dd  if=$(obj)/bootblock.signed  of=$(obj)/bootblock.signed.pad  ibs=25486 conv=sync 2> /dev/null
+diff --git a/payloads/external/skiboot/Makefile b/payloads/external/skiboot/Makefile
+index ef2e6f1dcd..7d4bc62500 100644
+--- a/payloads/external/skiboot/Makefile
++++ b/payloads/external/skiboot/Makefile
+@@ -22,7 +22,7 @@ $(device_tree_blob): $(build_dir) $(device_tree_source)
+ 	dtc -I dts -O dtb -o $(device_tree_blob) $(device_tree_source)
+ 
+ $(skiboot): $(skiboot_dir)
+-	$(MAKE) -C $(skiboot_dir) -j`nproc` CROSS=powerpc64-linux-gnu- DEBUG=1
++	$(MAKE) -C $(skiboot_dir) -j`nproc` "CROSS=$(CROSS)" DEBUG=1
+ 
+ $(skiboot_dir):
+ 	git clone $(skiboot_git_repo) $(skiboot_dir)
+@@ -37,6 +37,6 @@ distclean:
+ 
+ clean:
+ 	if [ -d $(skiboot_dir) ]; then \
+-		$(MAKE) -C $(skiboot_dir) CROSS=powerpc64-linux-gnu- RM="rm -f" clean > /dev/null; \
++		$(MAKE) -C $(skiboot_dir) "CROSS=$(CROSS)" RM="rm -f" clean > /dev/null; \
+ 	fi
+ 	rm -rf $(build_dir)
