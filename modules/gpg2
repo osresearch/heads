@@ -1,5 +1,7 @@
 modules-$(CONFIG_GPG2) += gpg2
 
+CONFIG_GPG2_TARGET ?= x86_64
+
 gpg2_version := 2.2.21
 gpg2_dir := gnupg-$(gpg2_version)
 gpg2_tar := gnupg-$(gpg2_version).tar.bz2
@@ -14,7 +16,7 @@ gpg2_hash := 61e83278fb5fa7336658a8b73ab26f379d41275bb1c7c6e694dd9f9a6e8e76ec
 gpg2_configure := ./configure \
 	$(CROSS_TOOLS) \
 	CPPFLAGS="-I$(INSTALL)/include/libusb-1.0" \
-	--host x86_64-linux-musl \
+	--host "$(CONFIG_GPG2_TARGET)-linux-musl" \
 	--with-libusb="$(INSTALL)" \
 	--with-gpg-error-prefix="$(INSTALL)" \
 	--with-libgcrypt-prefix="$(INSTALL)" \
