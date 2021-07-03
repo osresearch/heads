@@ -50,6 +50,7 @@ linux_configure := \
 	mkdir -p "$(build)/$(linux_dir)" \
 	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
 	&& $(MAKE) -C .. \
+		ARCH="$(CONFIG_LINUX_ARCH)" \
 		CROSS_COMPILE="$(CROSS)" \
 		O="$(build)/$(linux_dir)" \
 		olddefconfig \
