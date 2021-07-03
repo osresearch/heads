@@ -40,12 +40,10 @@ musl-cross_configure := \
 	/bin/echo -e >> Makefile 'musl-target:' ; \
 	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=x86_64-linux-musl install' ; \
 	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=i386-linux-musl install' ;
-else ifeq "$(CONFIG_MUSL_TARGET)" "powerpc64"
+else
 musl-cross_configure := \
 	/bin/echo -e >> Makefile 'musl-target:' ; \
-	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=powerpc64-linux-musl install' ;
-else
-$(error "$(BOARD): does not specify correct musl target under CONFIG_MUSL_TARGET")
+	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=$(CONFIG_MUSL_TARGET)-linux-musl install' ;
 endif
 
 CROSS_PATH ?= $(pwd)/crossgcc
