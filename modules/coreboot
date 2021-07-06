@@ -1,5 +1,8 @@
 modules-$(CONFIG_COREBOOT) += coreboot
+
 CONFIG_COREBOOT_TARGET ?= i386
+# duplicates a variable in linux module because it's might be included later
+CONFIG_LINUX_IMAGE_FILE ?= bzImage
 
 ifeq "$(CONFIG_COREBOOT)" "y"
 
