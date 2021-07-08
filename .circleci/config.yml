@@ -167,8 +167,8 @@ workflows:
 
       # Coreboot Talos
       - build_and_persist:
-          name: talos_2
-          target: talos_2
+          name: talos-2
+          target: talos-2
           requires:
             - prep_env
 
@@ -177,7 +177,7 @@ workflows:
           name: qemu-coreboot
           target: qemu-coreboot
           requires:
-            - talos_2
+            - talos-2
 
 
       - save_cache:
@@ -191,10 +191,10 @@ workflows:
 #
 
       - build:
-          name: talos_2_le
-          target: talos_2_le
+          name: talos-2-le
+          target: talos-2-le
           requires:
-            - talos_2
+            - talos-2
 
 
 ########################
