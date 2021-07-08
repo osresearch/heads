@@ -114,6 +114,12 @@ include $(CONFIG)
 # Unless otherwise specified, we are building for heads
 CONFIG_HEADS	?= y
 
+# Unless otherwise specified, we are building for x86
+CONFIG_TARGET	?= x86
+
+# Use target-specific install directory.
+INSTALL := $(INSTALL)/$(CONFIG_TARGET)
+
 # record the build date / git hashes and other files here
 HASHES		:= $(build)/$(BOARD)/hashes.txt
 
