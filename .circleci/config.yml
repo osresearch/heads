@@ -191,10 +191,10 @@ workflows:
 #
 
       - build:
-        name: talos_2_le
-        target: talos_2_le
-        requires:
-          - talos_2
+          name: talos_2_le
+          target: talos_2_le
+          requires:
+            - talos_2
 
 
 ########################
