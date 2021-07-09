@@ -1,0 +1,108 @@
+diff --git a/Makefile.inc b/Makefile.inc
+index 0bce7b69c0..0ae6eb6bcf 100644
+--- a/Makefile.inc
++++ b/Makefile.inc
+@@ -586,7 +586,7 @@ $(ECCTOOL):
+ 	cd $(objutil)/ffs && autoreconf -i && ./configure
+ 	+$(MAKE) -C $(objutil)/ffs
+ 
+-$(SBSIGNTOOLS):
++$(SBSIGNTOOLS)/create-container:
+ 	@printf "    Compile SB SIGNING UTILS\n"
+ 	cp -r $(top)/3rdparty/sb-signing-utils $(objutil)
+ 	cd $(objutil)/sb-signing-utils && autoreconf -i -Wno-unsupported && ./configure
+@@ -703,7 +703,7 @@ install-git-commit-clangfmt:
+ include util/crossgcc/Makefile.inc
+ 
+ .PHONY: tools
+-tools: $(objutil)/kconfig/conf $(objutil)/kconfig/toada $(CBFSTOOL) $(objutil)/cbfstool/cbfs-compression-tool $(FMAPTOOL) $(RMODTOOL) $(IFWITOOL) $(objutil)/nvramtool/nvramtool $(objutil)/sconfig/sconfig $(IFDTOOL) $(CBOOTIMAGE) $(AMDFWTOOL) $(AMDCOMPRESS) $(FUTILITY) $(BINCFG) $(IFITTOOL) $(objutil)/supermicro/smcbiosinfo $(ECCTOOL) $(SBSIGNTOOLS)
++tools: $(objutil)/kconfig/conf $(objutil)/kconfig/toada $(CBFSTOOL) $(objutil)/cbfstool/cbfs-compression-tool $(FMAPTOOL) $(RMODTOOL) $(IFWITOOL) $(objutil)/nvramtool/nvramtool $(objutil)/sconfig/sconfig $(IFDTOOL) $(CBOOTIMAGE) $(AMDFWTOOL) $(AMDCOMPRESS) $(FUTILITY) $(BINCFG) $(IFITTOOL) $(objutil)/supermicro/smcbiosinfo $(ECCTOOL) $(SBSIGNTOOLS)/create-container
+ 
+ ###########################################################################
+ # Common recipes for all stages
+@@ -1162,7 +1162,7 @@ add_intermediate = \
+ 	$(1): $(obj)/coreboot.pre $(2) | $(INTERMEDIATE) \
+ 	$(eval INTERMEDIATE+=$(1)) $(eval PHONY+=$(1))
+ 
+-$(obj)/coreboot.rom: $(obj)/coreboot.pre $(RAMSTAGE) $(CBFSTOOL) $(ECCTOOL) $(SBSIGNTOOLS) $$(INTERMEDIATE)
++$(obj)/coreboot.rom: $(obj)/coreboot.pre $(RAMSTAGE) $(CBFSTOOL) $(ECCTOOL) $(SBSIGNTOOLS)/create-container $$(INTERMEDIATE)
+ 	@printf "    CBFS       $(subst $(obj)/,,$(@))\n"
+ # The full ROM may be larger than the CBFS part, so create an empty
+ # file (filled with \377 = 0xff) and copy the CBFS image over it.
+diff --git a/payloads/external/skiboot/Makefile b/payloads/external/skiboot/Makefile
+index ef2e6f1dcd..ff99b6d8cc 100644
+--- a/payloads/external/skiboot/Makefile
++++ b/payloads/external/skiboot/Makefile
+@@ -8,6 +8,7 @@ skiboot_dir=$(CURDIR)/talos-skiboot
+ skiboot_git_repo=https://git.raptorcs.com/git/talos-skiboot
+ skiboot=$(skiboot_dir)/skiboot.lid
+ uimage=$(build_dir)/skiboot.uimage
++skiboot_cross=$(or $(CROSS),powerpc64-linux-gnu-)
+ 
+ unexport $(COREBOOT_EXPORTS)
+ 
+@@ -22,7 +23,7 @@ $(device_tree_blob): $(build_dir) $(device_tree_source)
+ 	dtc -I dts -O dtb -o $(device_tree_blob) $(device_tree_source)
+ 
+ $(skiboot): $(skiboot_dir)
+-	$(MAKE) -C $(skiboot_dir) -j`nproc` CROSS=powerpc64-linux-gnu- DEBUG=1
++	$(MAKE) -C $(skiboot_dir) -j`nproc` "CROSS=$(skiboot_cross)" DEBUG=1
+ 
+ $(skiboot_dir):
+ 	git clone $(skiboot_git_repo) $(skiboot_dir)
+@@ -37,6 +38,6 @@ distclean:
+ 
+ clean:
+ 	if [ -d $(skiboot_dir) ]; then \
+-		$(MAKE) -C $(skiboot_dir) CROSS=powerpc64-linux-gnu- RM="rm -f" clean > /dev/null; \
++		$(MAKE) -C $(skiboot_dir) "CROSS=$(skiboot_cross)" RM="rm -f" clean > /dev/null; \
+ 	fi
+ 	rm -rf $(build_dir)
+diff --git a/util/crossgcc/Makefile b/util/crossgcc/Makefile
+index bb30fa41cc..7ae10e22fc 100644
+--- a/util/crossgcc/Makefile
++++ b/util/crossgcc/Makefile
+@@ -66,6 +66,9 @@ build-riscv:
+ build-ppc64:
+ 	@$(MAKE) build_tools BUILD_PLATFORM=powerpc64-linux-gnu
+ 
++build-ppc64le:
++	@$(MAKE) build_tools BUILD_PLATFORM=powerpc64le-linux-gnu
++
+ build-nds32le:
+ 	@$(MAKE) build_tools BUILD_PLATFORM=nds32le-elf
+ 
+@@ -85,6 +88,7 @@ distclean: clean
+ 
+ .PHONY: build_gcc build_iasl build_gdb build_clang all all_with_gdb \
+ 	all_without_gdb build_tools build-i386 build-x64 build-arm  \
+-	build-aarch64 build-riscv build-ppc64 build-nds32le build-nasm \
++	build-aarch64 build-riscv build-ppc64 build-ppc64le build-nds32le \
++	build-nasm \
+ 	clean distclean clean_tempfiles
+ .NOTPARALLEL:
+diff --git a/util/crossgcc/Makefile.inc b/util/crossgcc/Makefile.inc
+index 74de5bd91e..4a6b892f84 100644
+--- a/util/crossgcc/Makefile.inc
++++ b/util/crossgcc/Makefile.inc
+@@ -1,6 +1,6 @@
+ ## SPDX-License-Identifier: GPL-2.0-only
+ 
+-TOOLCHAIN_ARCHES := i386 x64 arm aarch64 riscv ppc64 nds32le
++TOOLCHAIN_ARCHES := i386 x64 arm aarch64 riscv ppc64 ppc64le nds32le
+ 
+ help_toolchain help::
+ 	@echo  '*** Toolchain targets ***'
+diff --git a/util/crossgcc/buildgcc b/util/crossgcc/buildgcc
+index 3c8b1a8728..1ca7a5227f 100755
+--- a/util/crossgcc/buildgcc
++++ b/util/crossgcc/buildgcc
+@@ -586,7 +586,7 @@ myhelp()
+ 	printf "    [-S|--scripting]              build scripting support for GDB\n\n"
+ 	printf "Platforms for GCC & GDB:\n"
+ 	printf "    x86_64 i386-elf i386-mingw32 riscv-elf arm aarch64\n"
+-	printf "    powerpc64le-linux-gnu nds32le-elf\n\n"
++	printf "    powerpc64-linux-gnu powerpc64le-linux-gnu nds32le-elf\n\n"
+ }
+ 
+ printversion() {

@@ -1,5 +1,7 @@
 modules-$(CONFIG_QRENCODE) += qrencode
 
+CONFIG_QRENCODE_TARGET ?= i386-elf-linux
+
 qrencode_version := 3.4.4
 qrencode_dir := qrencode-$(qrencode_version)
 qrencode_tar := qrencode-$(qrencode_version).tar.gz
@@ -12,7 +14,7 @@ qrencode_configure := ./configure \
 	$(CROSS_TOOLS) \
 	--prefix "/" \
 	--without-tools \
-	--host i386-elf-linux \
+	--host "$(CONFIG_QRENCODE_TARGET)" \
 
 qrencode_target := \
 	$(MAKE_JOBS) \

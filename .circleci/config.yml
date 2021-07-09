@@ -165,31 +165,24 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
+      # Coreboot Talos
+      - build_and_persist:
+          name: talos-2
+          target: talos-2
+          requires:
+            - prep_env
+
       # Coreboot 4.8.1
       - build_and_persist:
           name: qemu-coreboot
           target: qemu-coreboot
           requires:
-            - prep_env
-
-      # Coreboot 4.11
-      - build_and_persist:
-          name: kgpe-d16_workstation
-          target: kgpe-d16_workstation
-          requires:
-            - qemu-coreboot
-
-      # Coreboot 4.13
-      - build_and_persist:
-          name: librem_mini
-          target: librem_mini
-          requires:
-            - kgpe-d16_workstation
+            - talos-2
 
 
       - save_cache:
           requires:
-            - librem_mini
+            - qemu-coreboot
 
 #
 #
@@ -198,118 +191,10 @@ workflows:
 #
 
       - build:
-          name: x220-hotp-maximized
-          target: x220-hotp-maximized
+          name: talos-2-le
+          target: talos-2-le
           requires:
-            - librem_mini
-
-      - build:
-          name: x220-maximized
-          target: x220-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: t420-hotp-maximized
-          target: t420-hotp-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: t420-maximized
-          target: t420-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: x230-flash
-          target: x230-flash
-          requires:
-            - librem_mini
-
-      - build:
-          name: t430-flash
-          target: t430-flash
-          requires:
-            - librem_mini
-
-      - build:
-          name: t430
-          target: t430
-          requires:
-            - librem_mini
-
-      - build:
-          name: x230
-          target: x230
-          requires:
-            - librem_mini
-
-      - build:
-          name: x230-hotp-verification
-          target: x230-hotp-verification
-          requires:
-            - librem_mini
-
-      - build:
-          name: x230-maximized
-          target: x230-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: t430-hotp-maximized
-          target: t430-hotp-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: x230-hotp-maximized
-          target: x230-hotp-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: t430-maximized
-          target: t430-maximized
-          requires:
-            - librem_mini
-
-      - build:
-          name: qemu-coreboot-fbwhiptail
-          target: qemu-coreboot-fbwhiptail
-          requires:
-            - librem_mini
-
-      - build:
-          name: kgpe-d16_workstation-usb_keyboard
-          target: kgpe-d16_workstation-usb_keyboard
-          requires:
-            - librem_mini
-
-      - build:
-          name: kgpe-d16_server
-          target: kgpe-d16_server
-          requires:
-            - librem_mini
-
-      - build:
-          name: kgpe-d16_server-whiptail
-          target: kgpe-d16_server-whiptail
-          requires:
-            - librem_mini
-
-      - build:
-          name: librem_l1um
-          target: librem_l1um
-          requires:
-            - librem_mini
-
-      - build:
-          name: librem_mini_v2
-          target: librem_mini_v2
-          requires:
-            - librem_mini
+            - talos-2
 
 
 ########################

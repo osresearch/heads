@@ -1,4 +1,7 @@
 modules-$(CONFIG_GPG2) += npth
+
+CONFIG_NPTH_TARGET ?= x86_64
+
 npth_version := 1.6
 npth_dir := npth-$(npth_version)
 npth_tar := npth-$(npth_version).tar.bz2
@@ -7,7 +10,7 @@ npth_hash := 1393abd9adcf0762d34798dc34fdcf4d0d22a8410721e76f1e3afcd1daa4e2d1
 
 npth_configure := ./configure \
 	$(CROSS_TOOLS) \
-	--host x86_64-linux-musl \
+	--host "$(CONFIG_NPTH_TARGET)-linux-musl" \
 	--prefix "/" \
 	--disable-static \
 	--with-gpg-error-prefix="$(INSTALL)" \

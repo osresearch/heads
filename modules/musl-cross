@@ -1,4 +1,5 @@
 CONFIG_MUSL ?= y
+CONFIG_MUSL_TARGET ?= x86-64
 
 ifeq "$(MUSL_CROSS_ONCE)" ""
 MUSL_CROSS_ONCE := 1
@@ -32,22 +33,29 @@ musl-cross_libraries := \
 else
 
 # Force a full build of the cross compiler
+
+ifeq "$(CONFIG_MUSL_TARGET)" "x86-64"
 # have to build both x86_64 and i386 versions for coreboot
-
 musl-cross_configure := \
-	/bin/echo -e >> Makefile 'both:' ; \
+	/bin/echo -e >> Makefile 'musl-target:' ; \
 	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=x86_64-linux-musl install' ; \
-	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=i386-linux-musl install' ; \
+	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=i386-linux-musl install' ;
+else
+musl-cross_configure := \
+	/bin/echo -e >> Makefile 'musl-target:' ; \
+	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET="$(CONFIG_MUSL_TARGET)-linux-musl" install' ;
+endif
 
-CROSS_PATH ?= $(pwd)/crossgcc
+CROSS_PATH ?= $(pwd)/$(CONFIG_TARGET)/crossgcc
 
 musl-cross_target := \
 	OUTPUT="$(CROSS_PATH)" \
 	MAKE="$(MAKE)" \
-	both
+	$(MAKE_JOBS) \
+	musl-target
 
-CROSS := $(CROSS_PATH)/bin/x86_64-linux-musl-
-musl-cross_libraries := $(CROSS_PATH)/x86_64-linux-musl/lib/libc.so
+CROSS := $(CROSS_PATH)/bin/$(subst -,_,$(CONFIG_MUSL_TARGET))-linux-musl-
+musl-cross_libraries := $(CROSS_PATH)/$(subst -,_,$(CONFIG_MUSL_TARGET))-linux-musl/lib/libc.so
 
 endif
 
