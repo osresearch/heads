@@ -46,7 +46,7 @@ musl-cross_configure := \
 	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET="$(CONFIG_MUSL_TARGET)-linux-musl" install' ;
 endif
 
-CROSS_PATH ?= $(pwd)/$(CONFIG_TARGET)/crossgcc
+CROSS_PATH ?= $(pwd)/crossgcc/$(CONFIG_TARGET)
 
 musl-cross_target := \
 	OUTPUT="$(CROSS_PATH)" \
