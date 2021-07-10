@@ -165,19 +165,26 @@ workflows:
 # version. The last board in the sequence is the dependency
 # for the parallel boards built at the end, and also save_cache.
 
-      # Coreboot Talos
+      # Coreboot Talos BE
       - build_and_persist:
           name: talos-2
           target: talos-2
           requires:
             - prep_env
 
+      # Coreboot Talos LE
+      - build_and_persist:
+          name: talos-2-le
+          target: talos-2-le
+          requires:
+            - talos-2
+
       # Coreboot 4.8.1
       - build_and_persist:
           name: qemu-coreboot
           target: qemu-coreboot
           requires:
-            - talos-2
+            - talos-2-le
 
 
       - save_cache:
@@ -190,11 +197,6 @@ workflows:
 #
 #
 
-      - build:
-          name: talos-2-le
-          target: talos-2-le
-          requires:
-            - talos-2
 
 
 ########################
