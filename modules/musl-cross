@@ -34,17 +34,16 @@ else
 
 # Force a full build of the cross compiler
 
-ifeq "$(CONFIG_MUSL_TARGET)" "x86-64"
-# have to build both x86_64 and i386 versions for coreboot
+# need to configure all possible targets at once (configuration is done once)
+# have to build both x86_64 and i386 versions for coreboot on x86
 musl-cross_configure := \
-	/bin/echo -e >> Makefile 'musl-target:' ; \
+	/bin/echo -e >> Makefile 'musl-target-x86-64:' ; \
 	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=x86_64-linux-musl install' ; \
-	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=i386-linux-musl install' ;
-else
-musl-cross_configure := \
-	/bin/echo -e >> Makefile 'musl-target:' ; \
-	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET="$(CONFIG_MUSL_TARGET)-linux-musl" install' ;
-endif
+	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=i386-linux-musl install' ; \
+	/bin/echo -e >> Makefile 'musl-target-powerpc64:' ; \
+	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=powerpc64-linux-musl install' ; \
+	/bin/echo -e >> Makefile 'musl-target-powerpc64le:' ; \
+	/bin/echo -e >> Makefile '\t$$$$(MAKE) TARGET=powerpc64le-linux-musl install' ; \
 
 CROSS_PATH ?= $(pwd)/crossgcc/$(CONFIG_TARGET)
 
@@ -52,7 +51,7 @@ musl-cross_target := \
 	OUTPUT="$(CROSS_PATH)" \
 	MAKE="$(MAKE)" \
 	$(MAKE_JOBS) \
-	musl-target
+	"musl-target-$(CONFIG_MUSL_TARGET)"
 
 CROSS := $(CROSS_PATH)/bin/$(subst -,_,$(CONFIG_MUSL_TARGET))-linux-musl-
 musl-cross_libraries := $(CROSS_PATH)/$(subst -,_,$(CONFIG_MUSL_TARGET))-linux-musl/lib/libc.so
