@@ -567,6 +567,7 @@ $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 	$(call do,CPIO-XZ  ,$@,\
 	$(pwd)/bin/cpio-clean \
 		$^ \
+	| tee $(build)/$(initrd_dir)/initrd.cpio \
 	| xz \
 		--check=crc32 \
 		--lzma2=dict=1MiB \

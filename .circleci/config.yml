@@ -3,6 +3,8 @@ version: 2.1
 commands:
   build_board:
     parameters:
+      arch:
+        type: string
       target:
         type: string
     steps:
@@ -103,12 +105,15 @@ jobs:
     docker:
       - image: debian:10
     parameters:
+      arch:
+        type: string
       target:
         type: string
     steps:
       - attach_workspace:
           at: ~/
       - build_board:
+          arch: <<parameters.arch>>
           target: <<parameters.target>>
       - persist_to_workspace:
           root: ~/
@@ -127,6 +132,7 @@ jobs:
       - attach_workspace:
           at: ~/
       - build_board:
+          arch: <<parameters.arch>>
           target: <<parameters.target>>
 
   save_cache:
