@@ -14,7 +14,7 @@ commands:
       - run:
           name: Make Board
           command: |
-            rm -rf build/<<parameters.target>>/* build/log/* && make CPUS=16 V=1 BOARD=<<parameters.target>> || touch ./tmpDir/failed_build
+            rm -rf build/<<parameters.arch>>/<<parameters.target>>/* build/log/* && make CPUS=16 V=1 BOARD=<<parameters.target>> || touch ./tmpDir/failed_build
           no_output_timeout: 3h
       - run:
           name: Output build failing logs
@@ -23,13 +23,13 @@ commands:
       - run:
           name: Output hashes
           command: |
-            cat build/<<parameters.target>>/hashes.txt \
+            cat build/<<parameters.arch>>/<<parameters.target>>/hashes.txt \
       - run:
           name: Archiving build logs.
           command: |
-             tar zcvf build/<<parameters.target>>/logs.tar.gz build/log/*
+             tar zcvf build/<<parameters.arch>>/<<parameters.target>>/logs.tar.gz build/log/*
       - store_artifacts:
-          path: build/<<parameters.target>>
+          path: build/<<parameters.arch>>/<<parameters.target>>
 
 jobs:
   prep_env:
@@ -119,6 +119,8 @@ jobs:
     docker:
       - image: debian:10
     parameters:
+      arch:
+        type: string
       target:
         type: string
     steps:
@@ -138,14 +140,14 @@ jobs:
           key: heads-musl-cross-{{ checksum "./tmpDir/musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
             - crossgcc
-            - build/musl-cross-*
+            - build/*/musl-cross-*
       - save_cache:
           #Generate cache for the same coreboot mnd musl-cross-make modules definition if hash is not previously existing
           key: heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
-            - build/coreboot-*
+            - build/*/coreboot-*
             - crossgcc
-            - build/musl-cross-*
+            - build/*/musl-cross-*
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
           key: heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
@@ -168,6 +170,7 @@ workflows:
       # Coreboot Talos BE
       - build_and_persist:
           name: talos-2
+          arch: ppc64be
           target: talos-2
           requires:
             - prep_env
@@ -175,6 +178,7 @@ workflows:
       # Coreboot Talos LE
       - build_and_persist:
           name: talos-2-le
+          arch: ppc64be
           target: talos-2-le
           requires:
             - talos-2
@@ -182,6 +186,7 @@ workflows:
       # Coreboot 4.8.1
       - build_and_persist:
           name: qemu-coreboot
+          arch: x86
           target: qemu-coreboot
           requires:
             - talos-2-le

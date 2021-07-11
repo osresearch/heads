@@ -120,6 +120,10 @@ CONFIG_TARGET	?= x86
 # Use target-specific install directory.
 INSTALL := $(INSTALL)/$(CONFIG_TARGET)
 
+# Use target-specific build directory for building modules.
+build		:= $(pwd)/build/$(CONFIG_TARGET)
+log_dir		:= $(build)/log
+
 # record the build date / git hashes and other files here
 HASHES		:= $(build)/$(BOARD)/hashes.txt
 
