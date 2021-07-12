@@ -64,6 +64,7 @@ $(eval $(shell echo >&2 "$(DATE) Wrong gawk detected: $(LOCAL_GAWK_VERSION)"))
 HEADS_GAWK := $(build)/$(gawk_dir)/gawk
 
 gawk_build := $(build)
+gawk_log_dir := $(log_dir)
 
 # Once we have a suitable version of gawk, we can rerun make
 all linux cpio run: $(HEADS_GAWK)
@@ -92,14 +93,14 @@ $(gawk_build)/$(gawk_dir)/.patch: $(gawk_build)/$(gawk_dir)/.extract
 $(gawk_build)/$(gawk_dir)/.configured: $(gawk_build)/$(gawk_dir)/.patch
 	cd "$(dir $@)" ; \
 	./configure 2>&1 \
-	| tee "$(log_dir)/gawk.configure.log" \
+	| tee "$(gawk_log_dir)/gawk.configure.log" \
 	$(VERBOSE_REDIRECT)
 	touch "$@"
 
 $(HEADS_GAWK): $(gawk_build)/$(gawk_dir)/.configured
 	$(MAKE) -C "$(dir $@)" $(MAKE_JOBS) \
 		2>&1 \
-		| tee "$(log_dir)/gawk.log" \
+		| tee "$(gawk_log_dir)/gawk.log" \
 		$(VERBOSE_REDIRECT)
 endif
 
@@ -125,6 +126,8 @@ INSTALL := $(INSTALL)/$(CONFIG_TARGET)
 # Use target-specific build directory for building modules.
 build		:= $(build)/$(CONFIG_TARGET)
 log_dir		:= $(build)/log
+
+BUILD_LOG := $(shell mkdir -p "$(log_dir)" )
 
 # record the build date / git hashes and other files here
 HASHES		:= $(build)/$(BOARD)/hashes.txt
