@@ -63,6 +63,8 @@ ifeq "" "$(filter $(LOCAL_GAWK_MAJOR_VERSION).%,$(gawk_version))"
 $(eval $(shell echo >&2 "$(DATE) Wrong gawk detected: $(LOCAL_GAWK_VERSION)"))
 HEADS_GAWK := $(build)/$(gawk_dir)/gawk
 
+gawk_build := $(build)
+
 # Once we have a suitable version of gawk, we can rerun make
 all linux cpio run: $(HEADS_GAWK)
 	LANG=C HEADS_GAWK=$(HEADS_GAWK) $(MAKE) $(MAKE_JOBS) $@
@@ -79,22 +81,22 @@ $(packages)/$(gawk_tar):
 	fi
 	mv "$@.tmp" "$@"
 
-$(build)/$(gawk_dir)/.extract: $(packages)/$(gawk_tar)
-	tar xf "$<" -C "$(build)"
+$(gawk_build)/$(gawk_dir)/.extract: $(packages)/$(gawk_tar)
+	tar xf "$<" -C "$(gawk_build)"
 	touch "$@"
 
-$(build)/$(gawk_dir)/.patch: $(build)/$(gawk_dir)/.extract
+$(gawk_build)/$(gawk_dir)/.patch: $(gawk_build)/$(gawk_dir)/.extract
 #	( cd "$(dir $@)" ; patch -p1 ) < "patches/gawk-$(gawk_version).patch"
 	touch "$@"
 
-$(build)/$(gawk_dir)/.configured: $(build)/$(gawk_dir)/.patch
+$(gawk_build)/$(gawk_dir)/.configured: $(gawk_build)/$(gawk_dir)/.patch
 	cd "$(dir $@)" ; \
 	./configure 2>&1 \
 	| tee "$(log_dir)/gawk.configure.log" \
 	$(VERBOSE_REDIRECT)
 	touch "$@"
 
-$(HEADS_GAWK): $(build)/$(gawk_dir)/.configured
+$(HEADS_GAWK): $(gawk_build)/$(gawk_dir)/.configured
 	$(MAKE) -C "$(dir $@)" $(MAKE_JOBS) \
 		2>&1 \
 		| tee "$(log_dir)/gawk.log" \
@@ -121,7 +123,7 @@ CONFIG_TARGET	?= x86
 INSTALL := $(INSTALL)/$(CONFIG_TARGET)
 
 # Use target-specific build directory for building modules.
-build		:= $(pwd)/build/$(CONFIG_TARGET)
+build		:= $(build)/$(CONFIG_TARGET)
 log_dir		:= $(build)/log
 
 # record the build date / git hashes and other files here
