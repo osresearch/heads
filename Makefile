@@ -138,6 +138,10 @@ BOARD_LOG	:= $(shell \
 	echo "$(DATE) $(GIT_HASH) $(GIT_STATUS)" > "$(HASHES)" ; \
 )
 
+ifeq "y" "$(CONFIG_LINUX_BUNDLED)"
+# Create empty initrd for initial kernel "without" initrd.
+$(shell cpio -o < /dev/null > $(build)/$(BOARD)/initrd.cpio)
+endif
 
 # If V is set in the environment, do not redirect the tee
 # command to /dev/null.
@@ -572,7 +576,6 @@ $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 	$(call do,CPIO-XZ  ,$@,\
 	$(pwd)/bin/cpio-clean \
 		$^ \
-	| tee $(build)/$(initrd_dir)/initrd.cpio \
 	| xz \
 		--check=crc32 \
 		--lzma2=dict=1MiB \
@@ -586,6 +589,12 @@ $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 		rm "$@.tmp" ; \
 	fi
 	@sha256sum "$(@:$(pwd)/%=%)" | tee -a "$(HASHES)"
+
+#
+# At the moment PowerPC can only load initrd bundled with the kernel.
+#
+bundle-$(CONFIG_LINUX_BUNDLED)	+= $(build)/$(BOARD)/$(CONFIG_LINUX_IMAGE_FILE).bundled
+all: $(bundle-y)
 
 #
 # The heads.cpio is built from the initrd directory in the

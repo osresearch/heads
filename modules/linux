@@ -182,6 +182,15 @@ $(build)/$(BOARD)/$(CONFIG_LINUX_IMAGE_FILE): $(build)/$(linux_dir)/.build
 	@touch $@ # force a timestamp update
 	@sha256sum "$@" | tee -a "$(HASHES)"
 
+# Build kernel second time, not that initrd is built.
+$(build)/$(BOARD)/$(CONFIG_LINUX_IMAGE_FILE).bundled: \
+	$(build)/$(initrd_dir)/initrd.cpio.xz \
+	$(build)/$(BOARD)/$(CONFIG_LINUX_IMAGE_FILE)
+	xz --decompress --stdout --force "$<" > $(build)/$(initrd_dir)/initrd.cpio
+	$(MAKE) -C "$(build)/$(linux_dir)" $(linux_target)
+	$(call do-copy,$(build)/$(linux_dir)/$(linux_output),$@)
+	@touch $@ # force a timestamp update
+	@sha256sum "$@" | tee -a "$(HASHES)"
 
 # menuconfig target allows us to easily reconfigure this Linux kernel
 # Afterwars make linux.saveconfig to generate a minimal config from it
